@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=renamer
+Exec=renamer
+Icon=renamer
+Categories=Development;
+Terminal=false
+Keywords=wails
+Version=1.0
+StartupNotify=false

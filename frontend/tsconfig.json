@@ -1,0 +1,23 @@
+/**
+ * TypeScript configuration for the frontend.
+ * The frontend is now written in TypeScript; .svelte components use <script lang="ts">
+ * and are type-checked by the Svelte tooling, while .ts files are checked here.
+ */
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext", "DOM"],
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "allowJs": false,
+    "checkJs": false,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src", "bindings"],
+  "exclude": ["node_modules", "dist", "build"]
+}

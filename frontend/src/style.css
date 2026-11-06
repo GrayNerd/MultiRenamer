@@ -1,0 +1,145 @@
+/* ---- CSS variables for light / dark mode ---- */
+:root {
+    --bg:          #ffffff;
+    --fg:          #212121;
+    --toolbar-bg:  #f5f5f5;
+    --border:      #e0e0e0;
+    --grid-bg:     #ffffff;
+    --grid-header: #f0f0f0;
+}
+
+body.dark {
+    --bg:          #2b2b2b;
+    --fg:          #f0f0f0;
+    --toolbar-bg:  #3c3c3c;
+    --border:      #555555;
+    --grid-bg:     #3c3c3c;
+    --grid-header: #4a4a4a;
+}
+
+body {
+    margin: 0;
+    font-family: sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* ---- Toolbar ---- */
+#toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--toolbar-bg);
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.toolbar-left,
+.toolbar-right {
+    display: flex;
+    gap: 4px;
+}
+
+#toolbar button {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: transparent;
+    border: none;
+    color: var(--fg);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+#toolbar button:hover {
+    background: var(--border);
+}
+
+/* Record button: circle icon + "Record", square icon + "Stop" while recording. */
+#btn-record .icon-stop {
+    display: none;
+}
+#btn-record[aria-pressed="true"] .icon-record {
+    display: none;
+}
+#btn-record[aria-pressed="true"] .icon-stop {
+    display: inline;
+}
+
+#toolbar img {
+    width: 24px;
+    height: 24px;
+    filter: var(--fg);
+}
+#toolbar svg {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+/* ---- Grid fills the rest of the window ---- */
+#grid {
+    flex: 1 1 auto;
+    overflow: hidden;
+}
+
+/* Tabulator overrides to respect the theme */
+.tabulator {
+    background: var(--grid-bg) !important;
+    color: var(--fg) !important;
+}
+.tabulator .tabulator-headers {
+    background: var(--grid-header) !important;
+    color: var(--fg) !important;
+    border-bottom: 1px solid var(--border) !important;
+}
+.tabulator .tabulator-col {
+    background: var(--grid-header) !important;
+    color: var(--fg) !important;
+    border: none !important;
+    border-right: 1px solid var(--border) !important;
+}
+.tabulator .tabulator-col-title {
+    color: var(--fg) !important;
+}
+.tabulator .tabulator-col.header-filter {
+    background: var(--grid-header) !important;
+}
+.tabulator .tabulator-cell {
+    background: var(--grid-bg) !important;
+    color: var(--fg) !important;
+    border: none !important;
+    border-right: 1px solid var(--border) !important;
+    border-bottom: 1px solid var(--border) !important;
+}
+.tabulator .tabulator-row {
+    background: var(--grid-bg) !important;
+    color: var(--fg) !important;
+    border-bottom: 1px solid var(--border) !important;
+}
+.tabulator .tabulator-row:hover {
+    background: var(--border) !important;
+}
+
+/* Cell editors are raw <input>/<select> elements, which the browser styles with
+   its own font (~13px) instead of inheriting the grid's 14px font. Match the
+   read-only cell so the text does not resize when a cell is selected/edited. */
+.tabulator .tabulator-cell.tabulator-editing input,
+.tabulator .tabulator-cell.tabulator-editing select,
+.tabulator .tabulator-cell.tabulator-editing textarea {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+    background: transparent;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    /* Editing cells get padding: 0 from Tabulator — restore the cell padding. */
+    padding: 4px;
+}
