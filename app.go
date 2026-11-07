@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 // App holds the Wails application instance and its windows.
@@ -19,8 +20,13 @@ type App struct {
 }
 
 type FileInfo struct {
+	// Name is what the grid shows and edits: the file name without its
+	// extension ("archive.tar.gz" -> "archive.tar"), or the whole directory
+	// name. OriginalName is the same name as it was loaded.
 	Name         string `json:"name"`
 	OriginalName string `json:"original_name"`
+	Extension    string `json:"extension"` // "gz"; empty when a file has none
+	IsDir        bool   `json:"is_dir"`
 	DateCreated  string `json:"date_created"`
 	DateModified string `json:"date_modified"`
 	Size         string `json:"size"`
@@ -82,16 +88,50 @@ func (a *App) readDir(dir string) ([]FileInfo, error) {
 
 func (a *App) fileInfo(fullPath string, info os.FileInfo) FileInfo {
 	created := info.ModTime() // fallback; use platform‑specific syscall for true creation time
+
+	// The grid edits the name without its extension and shows the extension in
+	// its own column; a directory has no extension to show.
+	name, extension := splitExtension(info.Name(), info.IsDir())
+
 	// time.DateTime ("2006-01-02 15:04:05") instead of RFC3339: the "T" separator
 	// and timezone offset just eat space in the grid columns.
 	return FileInfo{
-		Name:         info.Name(),
-		OriginalName: info.Name(),
+		Name:         name,
+		OriginalName: name,
+		Extension:    extension,
+		IsDir:        info.IsDir(),
 		DateCreated:  created.Format(time.DateTime),
 		DateModified: info.ModTime().Format(time.DateTime),
 		Size:         formatSize(info.Size()),
 		FullPath:     fullPath,
 	}
+}
+
+// splitExtension separates the name the grid shows from the extension kept on
+// disk: everything after the last "." is the extension, so "archive.tar.gz"
+// becomes "archive.tar" and "gz", while "README" has no extension at all. A
+// leading dot marks a hidden file, not an extension (".bashrc" has no
+// extension), and directories are never split.
+func splitExtension(name string, isDir bool) (stem, extension string) {
+	if isDir {
+		return name, ""
+	}
+
+	dot := strings.LastIndex(name, ".")
+	if dot <= 0 || dot == len(name)-1 {
+		return name, ""
+	}
+
+	return name[:dot], name[dot+1:]
+}
+
+// diskName is how a row's entry is called on disk: the grid's (edited) name plus
+// the extension it was loaded with.
+func (row FileInfo) diskName(name string) string {
+	if row.IsDir || row.Extension == "" {
+		return name
+	}
+	return name + "." + row.Extension
 }
 
 // formatSize converts a byte count into a human‑readable string (B, KB, MB, GB, TB).
@@ -109,17 +149,35 @@ func formatSize(bytes int64) string {
 }
 
 // SaveRenames applies the edits made in the grid: every row whose Name no longer
-// matches its OriginalName is renamed on disk, files and directories alike.
+// matches its OriginalName is renamed on disk, files and directories alike. Only
+// the name is edited; the extension stays as it was, so "report.txt" renamed to
+// "summary" becomes "summary.txt". Spaces either side of the edited name are
+// dropped, since they would otherwise become part of the name on disk.
 //
 // Every row is checked before anything is touched, and if a rename fails part way
 // through the ones already done are rolled back, so the files on disk never end
-// up out of step with the rows in the grid.
-func (a *App) SaveRenames(rows []FileInfo) error {
+// up out of step with the rows in the grid. The rows come back with the new name
+// as their baseline and their paths brought up to date.
+func (a *App) SaveRenames(rows []FileInfo) ([]FileInfo, error) {
+	// Rows the user did not edit keep whatever name they have on disk, odd spaces
+	// and all; an edited name is trimmed before it is compared and applied.
+	for i := range rows {
+		if rows[i].Name != rows[i].OriginalName {
+			rows[i].Name = strings.TrimSpace(rows[i].Name)
+		}
+	}
+
 	if err := renameRows(rows); err != nil {
 		a.showError("Save failed", err.Error())
-		return err
+		return nil, err
 	}
-	return nil
+
+	for i := range rows {
+		rows[i].OriginalName = rows[i].Name
+		rows[i].FullPath = filepath.Join(filepath.Dir(rows[i].FullPath), rows[i].diskName(rows[i].Name))
+	}
+
+	return rows, nil
 }
 
 // renamePlan is one rename worked out from a grid row.
@@ -141,10 +199,12 @@ func renameRows(rows []FileInfo) error {
 			return fmt.Errorf("cannot rename %q: %w", row.OriginalName, err)
 		}
 
+		// The extension is not edited, so it has to go back on: the entry keeps
+		// the one it was loaded with.
 		dir := filepath.Dir(row.FullPath)
 		plan := renamePlan{
-			from: filepath.Join(dir, row.OriginalName),
-			to:   filepath.Join(dir, row.Name),
+			from: filepath.Join(dir, row.diskName(row.OriginalName)),
+			to:   filepath.Join(dir, row.diskName(row.Name)),
 		}
 		if plan.from == plan.to {
 			continue
@@ -217,12 +277,40 @@ func (a *App) showError(title, message string) {
 		Show()
 }
 
+// setupWindowName identifies the setup window in the window registry.
+const setupWindowName = "setup"
+
+// newSetupWindow builds the hidden setup window.
+//
+// Closing it only hides it. Wails destroys a window whose close is not
+// cancelled (it is then dropped from the registry, and Show cannot revive a
+// destroyed window), so letting the close through would leave the Setup button
+// permanently dead after the window had been closed once.
+func (a *App) newSetupWindow() *application.WebviewWindow {
+	w := a.app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:   setupWindowName,
+		Title:  "Setup",
+		Width:  400,
+		Height: 300,
+		Hidden: true,
+		URL:    "/setup.html",
+	})
+	w.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
+		w.Hide()
+		e.Cancel()
+	})
+	return w
+}
+
 // ShowSetup shows the setup window.
 func (a *App) ShowSetup() {
-	if a.setupWindow != nil {
-		a.setupWindow.Show()
-		a.setupWindow.Focus()
+	// Normally the window is only hidden, so showing it again is enough. Rebuild
+	// it when it is gone: a destroyed window cannot be shown.
+	if _, ok := a.app.Window.GetByName(setupWindowName); !ok {
+		a.setupWindow = a.newSetupWindow()
 	}
+	a.setupWindow.Show()
+	a.setupWindow.Focus()
 }
 
 // SetTheme switches the frontend CSS between light and dark mode.

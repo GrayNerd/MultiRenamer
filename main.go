@@ -35,14 +35,9 @@ func main() {
 		URL:            "/",
 	})
 
-	app.setupWindow = a.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name:   "setup",
-		Title:  "Setup",
-		Width:  400,
-		Height: 300,
-		Hidden: true,
-		URL:    "/setup.html",
-	})
+	// Hidden until the Setup button asks for it, and only ever hidden by its
+	// close button — see newSetupWindow.
+	app.setupWindow = app.newSetupWindow()
 
 	app.mainWindow.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {
 		files := event.Context().DroppedFiles()

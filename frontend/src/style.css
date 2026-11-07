@@ -6,6 +6,8 @@
     --border:      #e0e0e0;
     --grid-bg:     #ffffff;
     --grid-header: #f0f0f0;
+    --row-selected:       #cfe3ff;
+    --row-selected-hover: #b9d6ff;
 }
 
 body.dark {
@@ -15,6 +17,8 @@ body.dark {
     --border:      #555555;
     --grid-bg:     #3c3c3c;
     --grid-header: #4a4a4a;
+    --row-selected:       #2f4a6d;
+    --row-selected-hover: #3b5c85;
 }
 
 body {
@@ -57,6 +61,17 @@ body {
 
 #toolbar button:hover {
     background: var(--border);
+}
+
+/* A button that has nothing to do (no changes to save, no rows to record
+   against, no macro to play) is disabled and must not light up on hover. */
+#toolbar button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+#toolbar button:disabled:hover {
+    background: transparent;
 }
 
 /* Record button: circle icon + "Record", square icon + "Stop" while recording. */
@@ -125,6 +140,23 @@ body {
     background: var(--border) !important;
 }
 
+/* Highlighted rows (shift-click / ctrl-click). The row and cell rules above use
+   !important, so the highlight has to be restated with the same weight, after
+   the hover rule, and for the cells too — they paint their own background. */
+.tabulator .tabulator-row.tabulator-selected,
+.tabulator .tabulator-row.tabulator-selected .tabulator-cell {
+    background: var(--row-selected) !important;
+}
+.tabulator .tabulator-row.tabulator-selected:hover,
+.tabulator .tabulator-row.tabulator-selected:hover .tabulator-cell {
+    background: var(--row-selected-hover) !important;
+}
+
+/* Rows are selectable, but the grid is for typing in: no pointer cursor. */
+.tabulator .tabulator-row.tabulator-selectable {
+    cursor: default;
+}
+
 /* Cell editors are raw <input>/<select> elements, which the browser styles with
    its own font (~13px) instead of inheriting the grid's 14px font. Match the
    read-only cell so the text does not resize when a cell is selected/edited. */
@@ -142,4 +174,46 @@ body {
     margin: 0;
     /* Editing cells get padding: 0 from Tabulator — restore the cell padding. */
     padding: 4px;
+}
+
+/* The Name column's header filter input is a raw <input>, so without this it
+   keeps the browser's white background and 13px font — unreadable in dark mode
+   and a different size from the grid text. Match the cell editors. */
+.tabulator .tabulator-header-filter input {
+    background: var(--grid-bg);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    box-sizing: border-box;
+    width: 100%;
+    margin: 0;
+    padding: 2px 4px;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+}
+
+.tabulator .tabulator-header-filter input:focus {
+    outline: none;
+    border-color: #888888;
+}
+
+/* ---- Drop feedback ---- */
+/* Wails adds this class to the data-file-drop-target element (<body>) while a
+   file drag hovers the window. The platform swallows the drag, so no DOM drag
+   event fires and this class is the only "you can drop here" cue available. */
+body.file-drop-target-active::after {
+    content: "";
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    box-sizing: border-box;
+    z-index: 10;
+    border: 2px dashed currentColor;
+    background: rgba(128, 128, 128, 0.15);
+    /* Not itself a drop target: the element under the cursor has to stay the
+       real content, or the drop cannot be matched to data-file-drop-target. */
+    pointer-events: none;
 }

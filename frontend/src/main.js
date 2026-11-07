@@ -3,6 +3,16 @@ import * as App from "../bindings/rename-app/app.js";
 import { TabulatorFull as Tabulator } from "tabulator-tables";
 import { preserveCaretAcrossCells } from "./caret.js";
 import { createMacroRecorder } from "./macro.js";
+import { createMultiRowEditor } from "./mirror.js";
+import { setupRowSelection } from "./rowselection.js";
+import { createToolbarState } from "./toolbar.js";
+
+// What the entry is, in a word. Read-only, like the extension beside it.
+const typeText = (row) => (row.is_dir ? "dir" : "file");
+
+// The grid's Name column holds the name without its extension; that is the only
+// thing that is edited. The extension and the type sit beside it, read-only, and
+// the file is saved back with whatever extension it came with.
 
 // --------------------------------------------------
 // Grid
@@ -12,17 +22,43 @@ const table = new Tabulator("#grid", {
     height: "100%",
     placeholder: "No files loaded",
     columns: [
-        { title: "Name",          field: "name",          editor: "input", widthGrow: 1, resizable: true,  headerSort: true },
+        // The header filter narrows the list to the names it matches; the rows
+        // it hides stay in the grid (and are still saved) but are skipped by
+        // Record/Play/Play All, which only work on what is on screen.
+        { title: "Name",          field: "name",          editor: "input", headerFilter: "input", headerFilterPlaceholder: "Filter", widthGrow: 1, resizable: true, headerSort: true },
+        // The extension only: a directory, or a file without one, has nothing in
+        // this column.
+        { title: "Ext",           field: "extension",     width: 90,      widthGrow: 0, resizable: false, headerSort: true },
+        // Read-only, and sorted by the word it shows rather than the flag.
+        { title: "Type",          field: "is_dir",        width: 90,      widthGrow: 0, resizable: false, headerSort: true,
+          formatter: (cell) => typeText(cell.getRow().getData()),
+          sorter: (a, b, aRow, bRow) => typeText(aRow.getData()).localeCompare(typeText(bRow.getData())) },
         { title: "Date Created",  field: "date_created",  width: 175,      widthGrow: 0, resizable: false, headerSort: true },
         { title: "Date Modified", field: "date_modified", width: 175,      widthGrow: 0, resizable: false, headerSort: true },
         { title: "Size",          field: "size",          width: 100,      widthGrow: 0, resizable: false, headerSort: true },
-        { title: "Original Name", field: "original_name", visible: false },
+        { field: "original_name", visible: false },
         { field: "full_path", visible: false },
     ],
+    // Rows can be highlighted: shift-click extends the highlight from the row
+    // clicked before, ctrl-click toggles one row. A highlighted range narrows
+    // Play All to exactly those rows (see macro.js); a plain click is how a cell
+    // starts being edited, so it clears the highlight again.
+    selectableRows: true,
+    selectableRowsRangeMode: "click",
+    // Editing is driven by rowselection.js instead: a click only selects the
+    // row, and clicking a row that is already selected opens the editor with the
+    // caret where the mouse is.
+    editTriggerEvent: false,
 });
 
 // Keep the caret at the same offset when moving between Name cells.
 preserveCaretAcrossCells(table, "name");
+
+// Click to select, click again to edit; arrow keys move the highlight.
+setupRowSelection(table, "name");
+
+// Typing into one of several highlighted rows edits all of them.
+createMultiRowEditor(table, "name");
 
 // --------------------------------------------------
 // Toolbar — each click now calls the imported binding
@@ -37,79 +73,68 @@ document.getElementById("btn-load").addEventListener("click", async () => {
 });
 
 const saveBtn = document.getElementById("btn-save");
+const recordBtn = document.getElementById("btn-record");
+const playBtn = document.getElementById("btn-play");
+const playAllBtn = document.getElementById("btn-playall");
+
+// Every button is disabled until it has something to do; see toolbar.js.
+const toolbar = createToolbarState(table, {
+    save: saveBtn,
+    record: recordBtn,
+    play: playBtn,
+    playAll: playAllBtn,
+});
+
 let saving = false;
 
 saveBtn.addEventListener("click", async () => {
     if (saving) return;            // a rename in progress; don't run it twice
     saving = true;
+    toolbar.setSaving(true);
 
     const rows = table.getData();
+    let saved;
 
     try {
-        // Go renames every row whose name no longer matches original_name; on
+        // Go renames every row whose name no longer matches original_name, putting
+        // the row's own extension back on, and hands the rows back with the new
+        // name as the baseline and full_path pointing at what it now names. On
         // failure it puts back anything it had already renamed and shows why.
-        await App.SaveRenames(rows);
+        saved = await App.SaveRenames(rows);
     } catch (err) {
         console.error("SaveRenames failed:", err);
         return;
     } finally {
         saving = false;
+        toolbar.setSaving(false);
     }
 
-    // Saved: the new name becomes the baseline for the next save, and full_path
-    // has to follow it so the row keeps pointing at the file it now names.
-    table.replaceData(rows.map((row) => ({
-        ...row,
-        full_path: renamedPath(row),
-        original_name: row.name,
-    })));
+    if (saved && saved.length) table.replaceData(saved);
 });
-
-// full_path ends with the name the file had when it was loaded, so swap that last
-// segment for the new name.
-function renamedPath(row) {
-    if (!row.full_path || row.name === row.original_name) return row.full_path;
-    return row.full_path.slice(0, row.full_path.length - row.original_name.length) + row.name;
-}
 
 document.getElementById("btn-setup").addEventListener("click", () => {
     App.ShowSetup().catch(err => console.error("ShowSetup failed:", err));
 });
 
 // --------------------------------------------------
-// Drag and Drop — handle file drops on all platforms
-// The wails runtime only sends file drops to Go on Windows (via WebView2).
-// On Linux, handle the DOM drop event directly and pass paths to the binding.
+// Drag and drop
+//
+// The DOM never sees a file drop: the platform takes the drag and hands it to
+// the Wails runtime, which discards any drop that does not land on an element
+// marked data-file-drop-target (<body> in index.html, so the whole window
+// counts). What reaches Go is a WindowFilesDropped window event, re-emitted
+// there as "files-dropped" with the dropped paths (see main.go), and this is
+// what loads them — the same replace-the-grid behaviour as the Load button.
 // --------------------------------------------------
-document.documentElement.addEventListener("dragover", (e) => {
-    e.preventDefault();
-});
+Events.On("files-dropped", async (ev) => {
+    const paths = Array.isArray(ev.data) ? ev.data : [];
+    if (paths.length === 0) return;
 
-document.documentElement.addEventListener("drop", async (e) => {
-    if (!e.dataTransfer?.files?.length) return;
-    e.preventDefault();
-
-    const files = Array.from(e.dataTransfer.files);
-    const paths = [];
-    for (const file of files) {
-        // WebKitGTK on Linux exposes the full filesystem path on File.path
-        if (file.path) {
-            paths.push(file.path);
-        } else if (file.webkitGetAsEntry) {
-            const entry = file.webkitGetAsEntry();
-            if (entry && entry.fullPath) {
-                paths.push(entry.fullPath);
-            }
-        }
-    }
-
-    if (paths.length > 0) {
-        try {
-            const result = await App.LoadPaths(paths);
-            if (result && result.length) table.replaceData(result);
-        } catch (err) {
-            console.error("LoadPaths failed:", err);
-        }
+    try {
+        const rows = await App.LoadPaths(paths);
+        if (rows && rows.length) table.replaceData(rows);
+    } catch (err) {
+        console.error("LoadPaths failed:", err);
     }
 });
 
@@ -122,7 +147,8 @@ Events.On("theme-changed", (ev) => {
 // Macro recorder — records keystrokes in a Name cell and replays them
 // --------------------------------------------------
 createMacroRecorder(table, {
-    record:  document.getElementById("btn-record"),
-    play:    document.getElementById("btn-play"),
-    playAll: document.getElementById("btn-playall"),
-}, "name");
+    record:  recordBtn,
+    play:    playBtn,
+    playAll: playAllBtn,
+    // Tells the toolbar whether Play and Play All have a macro to replay.
+}, "name", (state) => toolbar.setMacro(state));

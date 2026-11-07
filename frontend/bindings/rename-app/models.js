@@ -14,6 +14,9 @@ export class FileInfo {
     constructor($$source = {}) {
         if (!("name" in $$source)) {
             /**
+             * Name is what the grid shows and edits: the file name without its
+             * extension ("archive.tar.gz" -> "archive.tar"), or the whole directory
+             * name. OriginalName is the same name as it was loaded.
              * @member
              * @type {string}
              */
@@ -25,6 +28,21 @@ export class FileInfo {
              * @type {string}
              */
             this["original_name"] = "";
+        }
+        if (!("extension" in $$source)) {
+            /**
+             * "gz"; empty when a file has none
+             * @member
+             * @type {string}
+             */
+            this["extension"] = "";
+        }
+        if (!("is_dir" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["is_dir"] = false;
         }
         if (!("date_created" in $$source)) {
             /**

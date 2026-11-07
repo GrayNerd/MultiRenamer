@@ -1,23 +1,31 @@
 // Records the keystrokes typed into a Name cell and replays that edit on other
 // cells: Play applies it to the cell you are on and then moves down a row, Play
-// All applies it to that cell and to every cell below it in the grid.
+// All applies it to that cell and to every cell below it in the grid — unless
+// rows have been highlighted, in which case only those rows are touched.
+//
+// Only rows on screen are touched: a header filter hides the rows it does not
+// match, and those are skipped both when picking the cell to start from and
+// while walking down the table.
 //
 // Recording starts when the record button is pressed and stops on Enter, Tab,
 // the up/down arrows, Escape, or the (now "Stop") button itself. Pressing the
 // button does not take focus, so the cell keeps its editor and caret, and that
 // caret position is what the replay starts from — the same edit then lands in
 // the same place in the next name.
+//
+// Ctrl/Cmd+C, X and V are recorded as steps of their own: copy and cut take the
+// characters that were highlighted when the key was pressed, put them in the
+// macro's clipboard, and paste drops that clipboard in at the caret. The range
+// is re-read from each cell as it is replayed, so a macro that moves a date from
+// the start of the name to the end works on every row's own date.
 
-// Keys that end a recording instead of being recorded. Escape closes the
-// editor, so anything typed after it belongs to a different edit.
-const STOP_KEYS = ["Enter", "Tab", "ArrowUp", "ArrowDown", "Escape"];
-
-// Keys that edit or move within the field and are worth replaying.
-const EDIT_KEYS = ["Backspace", "Delete", "Home", "End", "ArrowLeft", "ArrowRight"];
+import { STOP_KEYS, applySteps, stepForKey } from "./steps.js";
 
 // controls: {record, play, playAll} button elements. The record button needs a
 // .btn-label child (its icon is swapped through aria-pressed in the stylesheet).
-export function createMacroRecorder(table, controls, field = "name") {
+// onStateChange is told when recording starts/stops and when a macro becomes
+// available, so the caller can enable/disable the buttons.
+export function createMacroRecorder(table, controls, field = "name", onStateChange = () => {}) {
     const {record: recordBtn, play: playBtn, playAll: playAllBtn} = controls;
 
     let recording = false;
@@ -25,6 +33,11 @@ export function createMacroRecorder(table, controls, field = "name") {
     let startOffset = null; // caret position the recorded edit started at
     let editingCell = null; // Name cell in edit mode right now
     let lastCell = null;    // Name cell that was edited most recently
+
+    // What copy and cut took, and what paste puts back: the macro's own
+    // clipboard. It is refilled from every cell that is replayed, so each row
+    // moves its own text instead of repeating the first row's.
+    let clipboard = "";
 
     table.on("cellEditing", (cell) => {
         if (cell.getField() !== field) return;
@@ -51,12 +64,42 @@ export function createMacroRecorder(table, controls, field = "name") {
         return input && typeof input.selectionStart === "number" ? input.selectionStart : null;
     };
 
-    // The cell Play works on: the last Name cell edited (clicking the toolbar
-    // closes its editor, so lastCell carries it over), else the selected row,
-    // else the first row.
+    // Rows the user can see: a header filter hides the rows it does not match,
+    // and Play only touches what is on screen.
+    const onScreenRows = () => table.getRows("active");
+
+    // Whether the current row selection is a deliberate highlight. Shift-click
+    // (range) and ctrl-click (add/remove) highlight rows, while a plain click is
+    // how a cell starts being edited — that one selects its row as a side effect
+    // and must not turn Play All into a single-row edit. The modifier is on the
+    // press, so it is read there; Tabulator acts on the click that follows.
+    let highlighted = false;
+    table.element.addEventListener("mousedown", (e) => {
+        if (!e.target.closest(".tabulator-row")) return;
+        highlighted = e.shiftKey || e.ctrlKey || e.metaKey;
+    }, true);
+
+    // The highlighted rows that are on screen, in the order they are shown.
+    const highlightedCells = () => {
+        if (!highlighted) return [];
+
+        const selected = new Set(table.getSelectedRows());
+        return onScreenRows()
+            .filter((row) => selected.has(row))
+            .map((row) => row.getCell(field));
+    };
+
+    // The cell Play works on: the last Name cell edited — clicking the toolbar
+    // closes its editor, so lastCell carries it over — but only while that row
+    // is still on screen; a filter hides rows, and Play skips them. Otherwise
+    // the selected row, else the first row on screen.
     const currentCell = () => {
-        if (lastCell) return lastCell;
-        const row = table.getSelectedRows()[0] || table.getRows()[0];
+        const rows = onScreenRows();
+        const onScreen = new Set(rows);
+
+        if (lastCell && onScreen.has(lastCell.getRow())) return lastCell;
+
+        const row = table.getSelectedRows().find((row) => onScreen.has(row)) || rows[0];
         return row ? row.getCell(field) : null;
     };
 
@@ -68,19 +111,26 @@ export function createMacroRecorder(table, controls, field = "name") {
         if (label) label.textContent = isRecording ? "Stop" : "Record";
     };
 
+    // Steps only become playable once a recording has stopped, so this is what
+    // tells the toolbar whether Play and Play All have anything to replay.
+    const notify = () => onStateChange({recording, hasMacro: steps.length > 0});
+
     const startRecording = () => {
         recording = true;
         steps = [];
+        clipboard = "";
         // Remember where the caret is in the field being edited right now; the
         // replay starts there. Null when nothing is open, in which case the
         // first recorded keystroke pins the position down instead.
         startOffset = caretInField();
         setButtonState(true);
+        notify();
     };
 
     const stopRecording = () => {
         recording = false;
         setButtonState(false);
+        notify();
     };
 
     // Pressing the button must not take focus: that would close the editor and
@@ -93,6 +143,19 @@ export function createMacroRecorder(table, controls, field = "name") {
         recording ? stopRecording() : startRecording();
     });
 
+    // Text pasted in from outside the macro (copied in another application, say)
+    // cannot come from its clipboard, so keep what the browser is about to
+    // insert and let the paste step fall back to it.
+    document.addEventListener("paste", (e) => {
+        if (!recording) return;
+        const paste = steps[steps.length - 1];
+        if (paste && paste.key === "Paste") paste.text = e.clipboardData?.getData("text/plain") ?? "";
+    });
+
+    // Captured on the way down rather than bubbled: Tabulator's input editor
+    // calls stopPropagation() on Home and End, so a listener on the document
+    // would never see them. Running first also means Enter and the navigation
+    // keys are seen before the editor is committed and torn down.
     document.addEventListener("keydown", (e) => {
         if (!recording) return;
 
@@ -105,67 +168,21 @@ export function createMacroRecorder(table, controls, field = "name") {
         }
 
         const input = editingInput();
-        if (!input) return;
 
-        // Leave shortcuts (copy/paste/select all) to the browser.
-        if (e.ctrlKey || e.metaKey || e.altKey) return;
-        if (e.key.length !== 1 && !EDIT_KEYS.includes(e.key)) return;
+        // Only what is typed into the cell being recorded counts; the header
+        // filter and anything else with a key handler is left alone.
+        if (!input || e.target !== input) return;
+
+        // Everything else (select all, undo…) is left to the browser.
+        const step = stepForKey(e, input);
+        if (!step) return;
 
         // keydown fires before the key is applied, so the first recorded key
         // pins down the caret position the editing started at.
-        if (startOffset === null) startOffset = input.selectionStart;
+        if (startOffset === null) startOffset = input.selectionStart ?? 0;
 
-        steps.push({key: e.key});
-    });
-
-    // Replays the recorded keystrokes on the input and returns the final caret.
-    const applySteps = (input) => {
-        let value = input.value;
-        let caret = Math.min(startOffset ?? 0, value.length);
-
-        steps.forEach(({key}) => {
-            switch (key) {
-                case "Backspace":
-                    if (caret > 0) {
-                        value = value.slice(0, caret - 1) + value.slice(caret);
-                        caret -= 1;
-                    }
-                    break;
-
-                case "Delete":
-                    if (caret < value.length) {
-                        value = value.slice(0, caret) + value.slice(caret + 1);
-                    }
-                    break;
-
-                case "ArrowLeft":
-                    caret = Math.max(0, caret - 1);
-                    break;
-
-                case "ArrowRight":
-                    caret = Math.min(value.length, caret + 1);
-                    break;
-
-                case "Home":
-                    caret = 0;
-                    break;
-
-                case "End":
-                    caret = value.length;
-                    break;
-
-                default:
-                    if (key.length === 1) {
-                        value = value.slice(0, caret) + key + value.slice(caret);
-                        caret += 1;
-                    }
-            }
-        });
-
-        input.value = value;
-        input.setSelectionRange(caret, caret);
-        return caret;
-    };
+        steps.push(step);
+    }, true);
 
     // Puts the caret back into a cell's editor once Tabulator has built and
     // focused it (edit() does that right after the editor is appended).
@@ -178,20 +195,18 @@ export function createMacroRecorder(table, controls, field = "name") {
         });
     };
 
+    // Reopens a cell's editor and puts the caret at the given offset.
+    const focusCell = (cell, offset) => {
+        cell.edit();
+        focusCaret(cell, offset);
+    };
+
     // Move the caret into the cell directly below, keeping the same offset.
     // The last cell in the column stays in that field instead.
     const moveToNextRow = (cell, caret) => {
         const nextRow = cell.getRow().getNextRow();
         const nextCell = nextRow ? nextRow.getCell(field) : null;
-
-        if (!nextCell) {
-            cell.edit();
-            focusCaret(cell, caret);
-            return;
-        }
-
-        nextCell.edit();
-        focusCaret(nextCell, caret);
+        focusCell(nextCell || cell, caret);
     };
 
     // Applies the recorded steps to one cell and commits them, returning the
@@ -206,13 +221,16 @@ export function createMacroRecorder(table, controls, field = "name") {
         const input = cell.getElement().querySelector("input");
         if (!input) return null;
 
-        const caret = applySteps(input);
+        const applied = applySteps(input.value, Math.min(startOffset ?? 0, input.value.length), steps, clipboard);
+        clipboard = applied.clipboard;
+        input.value = applied.value;
+        input.setSelectionRange(applied.caret, applied.caret);
 
         // Commit through the editor's own change handler — the same path Enter
         // and blur take — so the value sticks before the editor is replaced.
         input.dispatchEvent(new Event("change", {bubbles: true}));
 
-        return caret;
+        return applied.caret;
     };
 
     playBtn.addEventListener("click", () => {
@@ -226,10 +244,26 @@ export function createMacroRecorder(table, controls, field = "name") {
     playAllBtn.addEventListener("click", () => {
         if (steps.length === 0) return;
 
+        // A highlighted range is exact: those rows only, top to bottom, and the
+        // caret stays in the last one (leaving the highlight would lose it).
+        const picked = highlightedCells();
+        if (picked.length) {
+            let last = null;
+            picked.forEach((cell) => {
+                const caret = replay(cell);
+                if (caret !== null) last = {cell, caret};
+            });
+
+            if (last) focusCell(last.cell, last.caret);
+            return;
+        }
+
         const cell = currentCell();
         if (!cell) return;
 
-        // This cell and every cell below it, top to bottom.
+        // No highlight: this cell and every cell below it, top to bottom.
+        // getNextRow walks the displayed rows, so a header filter's hidden rows
+        // are skipped.
         let lastCell = cell;
         let lastCaret = null;
 

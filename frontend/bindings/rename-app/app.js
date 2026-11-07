@@ -38,16 +38,22 @@ export function LoadPaths(paths) {
 
 /**
  * SaveRenames applies the edits made in the grid: every row whose Name no longer
- * matches its OriginalName is renamed on disk, files and directories alike.
+ * matches its OriginalName is renamed on disk, files and directories alike. Only
+ * the name is edited; the extension stays as it was, so "report.txt" renamed to
+ * "summary" becomes "summary.txt". Spaces either side of the edited name are
+ * dropped, since they would otherwise become part of the name on disk.
  * 
  * Every row is checked before anything is touched, and if a rename fails part way
  * through the ones already done are rolled back, so the files on disk never end
- * up out of step with the rows in the grid.
+ * up out of step with the rows in the grid. The rows come back with the new name
+ * as their baseline and their paths brought up to date.
  * @param {$models.FileInfo[]} rows
- * @returns {$CancellablePromise<void>}
+ * @returns {$CancellablePromise<$models.FileInfo[]>}
  */
 export function SaveRenames(rows) {
-    return $Call.ByID(6598195, rows);
+    return $Call.ByID(6598195, rows).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType1($result);
+    }));
 }
 
 /**
