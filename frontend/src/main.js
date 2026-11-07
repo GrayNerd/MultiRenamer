@@ -2,6 +2,7 @@ import { Events } from "@wailsio/runtime";
 import * as App from "../bindings/rename-app/app.js";
 import { TabulatorFull as Tabulator } from "tabulator-tables";
 import { preserveCaretAcrossCells } from "./caret.js";
+import { createHiddenFiles } from "./hidden.js";
 import { createMacroRecorder } from "./macro.js";
 import { createMultiRowEditor } from "./mirror.js";
 import { setupRowSelection } from "./rowselection.js";
@@ -54,6 +55,9 @@ const table = new Tabulator("#grid", {
 // Keep the caret at the same offset when moving between Name cells.
 preserveCaretAcrossCells(table, "name");
 
+// Hidden files stay out of the grid until Ctrl/Cmd+H asks for them.
+const hiddenFiles = createHiddenFiles(table);
+
 // Click to select, click again to edit; arrow keys move the highlight.
 setupRowSelection(table, "name");
 
@@ -66,7 +70,10 @@ createMultiRowEditor(table, "name");
 document.getElementById("btn-load").addEventListener("click", async () => {
     try {
         const files = await App.LoadDirectory();
-        if (files && files.length) table.replaceData(files);
+        if (files && files.length) {
+            table.replaceData(files);
+            hiddenFiles.reset();        // a new list starts with hidden files hidden
+        }
     } catch (err) {
         console.error("LoadDirectory failed:", err);
     }
@@ -132,7 +139,10 @@ Events.On("files-dropped", async (ev) => {
 
     try {
         const rows = await App.LoadPaths(paths);
-        if (rows && rows.length) table.replaceData(rows);
+        if (rows && rows.length) {
+            table.replaceData(rows);
+            hiddenFiles.reset();        // a new list starts with hidden files hidden
+        }
     } catch (err) {
         console.error("LoadPaths failed:", err);
     }

@@ -27,6 +27,7 @@ type FileInfo struct {
 	OriginalName string `json:"original_name"`
 	Extension    string `json:"extension"` // "gz"; empty when a file has none
 	IsDir        bool   `json:"is_dir"`
+	Hidden       bool   `json:"hidden"` // a dotfile; the grid hides these by default
 	DateCreated  string `json:"date_created"`
 	DateModified string `json:"date_modified"`
 	Size         string `json:"size"`
@@ -93,6 +94,11 @@ func (a *App) fileInfo(fullPath string, info os.FileInfo) FileInfo {
 	// its own column; a directory has no extension to show.
 	name, extension := splitExtension(info.Name(), info.IsDir())
 
+	// A name starting with a dot is how Unix hides a file, and it is the one flag
+	// that means the same on every platform this runs on. The grid leaves these
+	// rows out until they are asked for (Ctrl+H).
+	hidden := strings.HasPrefix(info.Name(), ".")
+
 	// time.DateTime ("2006-01-02 15:04:05") instead of RFC3339: the "T" separator
 	// and timezone offset just eat space in the grid columns.
 	return FileInfo{
@@ -100,6 +106,7 @@ func (a *App) fileInfo(fullPath string, info os.FileInfo) FileInfo {
 		OriginalName: name,
 		Extension:    extension,
 		IsDir:        info.IsDir(),
+		Hidden:       hidden,
 		DateCreated:  created.Format(time.DateTime),
 		DateModified: info.ModTime().Format(time.DateTime),
 		Size:         formatSize(info.Size()),

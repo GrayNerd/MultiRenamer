@@ -44,6 +44,14 @@ export class FileInfo {
              */
             this["is_dir"] = false;
         }
+        if (!("hidden" in $$source)) {
+            /**
+             * a dotfile; the grid hides these by default
+             * @member
+             * @type {boolean}
+             */
+            this["hidden"] = false;
+        }
         if (!("date_created" in $$source)) {
             /**
              * @member
