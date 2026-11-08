@@ -121,6 +121,17 @@ export function setupRowSelection(table, field = "name") {
             if (!input) return;
 
             input.addEventListener("keydown", (e) => {
+                // Tab commits the name and stops there. Tabulator leaves Tab to the
+                // browser and then to its own navigation, which opens an editor on
+                // the next cell — an edit that was finished should not carry on
+                // somewhere else.
+                if (e.key === "Tab") {
+                    e.preventDefault();
+                    e.stopPropagation();   // keep the browser's focus move and Tabulator's navigation out of it
+                    input.dispatchEvent(new Event("change", {bubbles: true}));
+                    return;
+                }
+
                 if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
                 if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
 
