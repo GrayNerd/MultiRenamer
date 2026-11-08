@@ -34,7 +34,8 @@ type FileInfo struct {
 	FullPath     string `json:"full_path"`
 }
 
-// LoadDirectory opens a native directory picker and returns the contents.
+// LoadDirectory opens a native directory picker and returns what is in the
+// chosen directory: its files and its subdirectories, one level only.
 func (a *App) LoadDirectory() ([]FileInfo, error) {
 	// ✅ v3 directory picker: OpenFile() with CanChooseDirectories(true) and CanChooseFiles(false)
 	path, err := a.app.Dialog.OpenFile().
@@ -49,7 +50,10 @@ func (a *App) LoadDirectory() ([]FileInfo, error) {
 	return a.readDir(path)
 }
 
-// LoadPaths loads an explicit list of paths (used for drag‑and‑drop).
+// LoadPaths loads an explicit list of paths (used for drag‑and‑drop): a dropped
+// file is added, and a dropped folder contributes what is directly inside it,
+// subfolders included. Nothing is ever descended into, so the contents of those
+// subfolders never reach the grid.
 func (a *App) LoadPaths(paths []string) ([]FileInfo, error) {
 	var result []FileInfo
 	for _, p := range paths {
@@ -77,6 +81,9 @@ func (a *App) readDir(dir string) ([]FileInfo, error) {
 	}
 	var result []FileInfo
 	for _, e := range entries {
+		// Everything directly inside dir is listed, files and subdirectories
+		// alike. Nothing is looked up inside those subdirectories: this is one
+		// level, never a walk of the tree.
 		full := filepath.Join(dir, e.Name())
 		info, err := e.Info()
 		if err != nil {

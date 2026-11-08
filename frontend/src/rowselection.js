@@ -107,6 +107,59 @@ export function setupRowSelection(table, field = "name") {
         if (!e.shiftKey && !e.ctrlKey && !e.metaKey) anchor = row;
     });
 
+    // Arrow keys while a Name editor is open move the edit to the adjacent row,
+    // and the highlight goes with it. Two things have to be done here rather than
+    // left to Tabulator: its own navigation cancels the open editor (throwing
+    // away what was typed), and it would leave the highlight — and so the
+    // multi-row edit — pointing at the row that was left behind.
+    const watchEditor = (cell) => {
+        // The editor is created after cellEditing, and on the next frame so that
+        // this listener is registered after caret.js's, which has to see the key
+        // first to carry the caret offset across.
+        requestAnimationFrame(() => {
+            const input = cell.getElement().querySelector("input");
+            if (!input) return;
+
+            input.addEventListener("keydown", (e) => {
+                if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+                if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+
+                const rows = onScreen();
+                const index = rows.indexOf(cell.getRow());
+                const next = rows[index + (e.key === "ArrowDown" ? 1 : -1)];
+
+                // Nothing to move to: leave the editor open where it is.
+                if (!next) return;
+
+                e.preventDefault();
+                e.stopPropagation();   // keep Tabulator's own navigation out of it
+
+                // Commit first, through the editor's own change handler — the
+                // path Enter and blur take.
+                input.dispatchEvent(new Event("change", {bubbles: true}));
+
+                // Highlight the row the edit has moved to, unless it is already
+                // part of a highlighted range.
+                if (!table.getSelectedRows().includes(next)) {
+                    table.deselectRow();
+                    next.select();
+                }
+
+                cursor = next;
+                if (!anchor || !rows.includes(anchor)) anchor = next;
+
+                // Bring the row into view first: scrolling afterwards re-renders
+                // the rows and takes the new editor down with them.
+                next.scrollTo();
+                next.getCell(field).edit();   // caret.js carries the offset over
+            }, true);
+        });
+    };
+
+    table.on("cellEditing", (cell) => {
+        if (cell.getField() === field) watchEditor(cell);
+    });
+
     document.addEventListener("keydown", (e) => {
         // An open editor owns these keys: the arrows move its caret and Escape
         // cancels the edit. The header filter owns its own caret too.
