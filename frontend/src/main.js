@@ -1,5 +1,9 @@
 import { Events } from "@wailsio/runtime";
 import * as App from "../bindings/multirenamer/app.js";
+// The grid's own stylesheet, bundled from node_modules so it is always the
+// version the code is written against — and so the grid is styled with no
+// network. src/style.css overrides what it needs with !important.
+import "tabulator-tables/dist/css/tabulator.min.css";
 import { TabulatorFull as Tabulator } from "tabulator-tables";
 import { preserveCaretAcrossCells } from "./caret.js";
 import { createHiddenFiles } from "./hidden.js";
