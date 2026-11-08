@@ -24,8 +24,9 @@ import { STOP_KEYS, applySteps, stepForKey } from "./steps.js";
 // controls: {record, play, playAll} button elements. The record button needs a
 // .btn-label child (its icon is swapped through aria-pressed in the stylesheet).
 // onStateChange is told when recording starts/stops and when a macro becomes
-// available, so the caller can enable/disable the buttons.
-export function createMacroRecorder(table, controls, field = "name", onStateChange = () => {}) {
+// available, so the caller can enable/disable the buttons. history, when given,
+// collects everything a press changes into one undo step.
+export function createMacroRecorder(table, controls, field = "name", onStateChange = () => {}, history = null) {
     const {record: recordBtn, play: playBtn, playAll: playAllBtn} = controls;
 
     let recording = false;
@@ -236,14 +237,19 @@ export function createMacroRecorder(table, controls, field = "name", onStateChan
     playBtn.addEventListener("click", () => {
         if (steps.length === 0) return;
 
-        const cell = currentCell();
-        const caret = replay(cell);
-        if (caret !== null) moveToNextRow(cell, caret);
+        // One undo step for the whole press, however many rows it changes.
+        history?.beginBatch();
+        try {
+            const cell = currentCell();
+            const caret = replay(cell);
+            if (caret !== null) moveToNextRow(cell, caret);
+        } finally {
+            history?.endBatch();
+        }
     });
 
-    playAllBtn.addEventListener("click", () => {
-        if (steps.length === 0) return;
-
+    // Everything Play All does, so one undo step can wrap the lot.
+    const playAll = () => {
         // A highlighted range is exact: those rows only, top to bottom, and the
         // caret stays in the last one (leaving the highlight would lose it).
         const picked = highlightedCells();
@@ -279,5 +285,17 @@ export function createMacroRecorder(table, controls, field = "name", onStateChan
         // The caret follows the same rule as Play: it ends up in the cell below
         // the last one edited, which here means the last row keeps the caret.
         if (lastCaret !== null) moveToNextRow(lastCell, lastCaret);
+    };
+
+    playAllBtn.addEventListener("click", () => {
+        if (steps.length === 0) return;
+
+        // One undo step for the whole press, however many rows it changes.
+        history?.beginBatch();
+        try {
+            playAll();
+        } finally {
+            history?.endBatch();
+        }
     });
 }

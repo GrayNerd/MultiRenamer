@@ -7,6 +7,7 @@ import "tabulator-tables/dist/css/tabulator.min.css";
 import { TabulatorFull as Tabulator } from "tabulator-tables";
 import { preserveCaretAcrossCells } from "./caret.js";
 import { createHiddenFiles } from "./hidden.js";
+import { createHistory } from "./history.js";
 import { createMacroRecorder } from "./macro.js";
 import { createMultiRowEditor } from "./mirror.js";
 import { setupRowSelection } from "./rowselection.js";
@@ -62,11 +63,19 @@ preserveCaretAcrossCells(table, "name");
 // Hidden files stay out of the grid until Ctrl/Cmd+H asks for them.
 const hiddenFiles = createHiddenFiles(table);
 
+// Undo covers what is changed in the grid: one step per edit, one per row a
+// macro press changes. It is created before the multi-row edit so its keystroke
+// listener runs first and still sees the rows as they were before the key landed
+// in them. It re-enables Save itself once a value is put back.
+const history = createHistory(table, document.getElementById("btn-undo"), "name", () => toolbar.refresh());
+
 // Click to select, click again to edit; arrow keys move the highlight.
 setupRowSelection(table, "name");
 
-// Typing into one of several highlighted rows edits all of them.
-createMultiRowEditor(table, "name");
+// Typing into one of several highlighted rows edits all of them. Handed to the
+// history so that an undo leaves the edit carrying on from what it put back.
+const multiRow = createMultiRowEditor(table, "name");
+history.setMirror(multiRow);
 
 // --------------------------------------------------
 // Toolbar — each click now calls the imported binding
@@ -165,4 +174,10 @@ createMacroRecorder(table, {
     play:    playBtn,
     playAll: playAllBtn,
     // Tells the toolbar whether Play and Play All have a macro to replay.
-}, "name", (state) => toolbar.setMacro(state));
+}, "name", (state) => {
+    toolbar.setMacro(state);
+
+    // No undo while a macro is being recorded: it would change the grid
+    // underneath the keystrokes being captured.
+    history.setBlocked(state.recording);
+}, history);
