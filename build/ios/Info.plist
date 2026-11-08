@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>renamer</string>
+    <string>MultiRenamer</string>
     <key>CFBundleIdentifier</key>
-    <string>com.graynerd.renamer</string>
+    <string>com.graynerd.multirenamer</string>
     <key>CFBundleName</key>
     <string>My Product</string>
     <key>CFBundleDisplayName</key>

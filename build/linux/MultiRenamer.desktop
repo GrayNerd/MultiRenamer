@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=renamer
-Exec=renamer
-Icon=renamer
+Name=MultiRenamer
+Exec=MultiRenamer
+Icon=MultiRenamer
 Categories=Development;
 Terminal=false
 Keywords=wails

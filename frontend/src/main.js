@@ -1,5 +1,5 @@
 import { Events } from "@wailsio/runtime";
-import * as App from "../bindings/rename-app/app.js";
+import * as App from "../bindings/multirenamer/app.js";
 import { TabulatorFull as Tabulator } from "tabulator-tables";
 import { preserveCaretAcrossCells } from "./caret.js";
 import { createHiddenFiles } from "./hidden.js";

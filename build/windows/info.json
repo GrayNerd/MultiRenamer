@@ -6,9 +6,9 @@
 		"0000": {
 			"ProductVersion": "0.1.0",
 			"CompanyName": "My Company",
-			"FileDescription": "A renamer application",
+			"FileDescription": "Rename many files and directories at once",
 			"LegalCopyright": "© 2026, My Company",
-			"ProductName": "My Product",
+			"ProductName": "MultiRenamer",
 			"Comments": "This is a comment"
 		}
 	}

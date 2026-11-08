@@ -1,13 +1,13 @@
 [Desktop Entry]
 Version=1.0
-Name=My Product
-Comment=A renamer application
+Name=MultiRenamer
+Comment=Rename many files and directories at once
 # The Exec line includes %u to pass the URL to the application
-Exec=/usr/local/bin/renamer %u
+Exec=/usr/local/bin/MultiRenamer %u
 Terminal=false
 Type=Application
-Icon=renamer
+Icon=MultiRenamer
 Categories=Utility;
-StartupWMClass=renamer
+StartupWMClass=MultiRenamer
 
  

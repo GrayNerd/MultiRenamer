@@ -16,7 +16,8 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
- * LoadDirectory opens a native directory picker and returns the contents.
+ * LoadDirectory opens a native directory picker and returns what is in the
+ * chosen directory: its files and its subdirectories, one level only.
  * @returns {$CancellablePromise<$models.FileInfo[]>}
  */
 export function LoadDirectory() {
@@ -26,7 +27,10 @@ export function LoadDirectory() {
 }
 
 /**
- * LoadPaths loads an explicit list of paths (used for drag‑and‑drop).
+ * LoadPaths loads an explicit list of paths (used for drag‑and‑drop): a dropped
+ * file is added, and a dropped folder contributes what is directly inside it,
+ * subfolders included. Nothing is ever descended into, so the contents of those
+ * subfolders never reach the grid.
  * @param {string[]} paths
  * @returns {$CancellablePromise<$models.FileInfo[]>}
  */

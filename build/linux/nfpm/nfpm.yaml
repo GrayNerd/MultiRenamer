@@ -3,26 +3,26 @@
 #
 # The lines below are called `modelines`. See `:help modeline`
 
-name: "renamer"
+name: "MultiRenamer"
 arch: ${GOARCH}
 platform: "linux"
 version: "0.1.0"
 section: "default"
 priority: "extra"
 maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
-description: "A renamer application"
+description: "Rename many files and directories at once"
 vendor: "My Company"
 homepage: "https://wails.io"
 license: "MIT"
 release: "1"
 
 contents:
-  - src: "./bin/renamer"
-    dst: "/usr/local/bin/renamer"
+  - src: "./bin/MultiRenamer"
+    dst: "/usr/local/bin/MultiRenamer"
   - src: "./build/appicon.png"
-    dst: "/usr/share/icons/hicolor/128x128/apps/renamer.png"
-  - src: "./build/linux/renamer.desktop"
-    dst: "/usr/share/applications/renamer.desktop"
+    dst: "/usr/share/icons/hicolor/128x128/apps/MultiRenamer.png"
+  - src: "./build/linux/MultiRenamer.desktop"
+    dst: "/usr/share/applications/MultiRenamer.desktop"
 
 # Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
 depends:

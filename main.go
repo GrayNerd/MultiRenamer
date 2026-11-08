@@ -15,7 +15,7 @@ func main() {
 	app := &App{}
 
 	a := application.New(application.Options{
-		Name: "Rename App",
+		Name: "MultiRenamer",
 		// ✅ THIS is what makes bindings generate.
 		Services: []application.Service{
 			application.NewService(app),
@@ -28,7 +28,7 @@ func main() {
 
 	app.mainWindow = a.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:           "main",
-		Title:          "Rename Files & Directories",
+		Title:          "MultiRenamer",
 		Width:          1200,
 		Height:         800,
 		EnableFileDrop: true,

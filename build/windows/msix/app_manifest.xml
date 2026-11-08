@@ -8,15 +8,15 @@
   IgnorableNamespaces="uap3">
   
   <Identity 
-    Name="com.graynerd.renamer"
+    Name="com.graynerd.multirenamer"
     Publisher="CN=My Company"
     Version="0.1.0.0" 
     ProcessorArchitecture="x64" />
   
   <Properties>
-    <DisplayName>My Product</DisplayName>
+    <DisplayName>MultiRenamer</DisplayName>
     <PublisherDisplayName>My Company</PublisherDisplayName>
-    <Description>A renamer application</Description>
+    <Description>Rename many files and directories at once</Description>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
   
@@ -29,10 +29,10 @@
   </Resources>
   
   <Applications>
-    <Application Id="com.graynerd.renamer" Executable="renamer" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="com.graynerd.multirenamer" Executable="MultiRenamer" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-        DisplayName="My Product"
-        Description="A renamer application"
+        DisplayName="MultiRenamer"
+        Description="Rename many files and directories at once"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">
@@ -41,7 +41,7 @@
       </uap:VisualElements>
       
       <Extensions>
-        <desktop:Extension Category="windows.fullTrustProcess" Executable="renamer" />
+        <desktop:Extension Category="windows.fullTrustProcess" Executable="MultiRenamer" />
         
         
       </Extensions>

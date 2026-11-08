@@ -1,4 +1,4 @@
-module rename-app
+module multirenamer
 
 go 1.26.0
 

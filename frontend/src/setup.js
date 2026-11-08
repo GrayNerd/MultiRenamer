@@ -1,5 +1,5 @@
 import { Events } from "@wailsio/runtime";
-import * as App from "../bindings/rename-app/app.js";
+import * as App from "../bindings/multirenamer/app.js";
 
 document.getElementById("dark-mode").addEventListener("change", (e) => {
     App.SetTheme(e.target.checked).catch(err => console.error(err));
