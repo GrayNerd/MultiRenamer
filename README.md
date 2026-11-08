@@ -1,59 +1,164 @@
-# Welcome to Your New Wails3 Project!
+# MultiRenamer
 
-Congratulations on generating your Wails3 application! This README will guide you through the next steps to get your project up and running.
+Bulk-rename files and folders in place, in a grid of names you can type in.
 
-## Getting Started
+Load a folder (or drop one on the window), edit names the way you would in a
+spreadsheet, and press Save to rename what is on disk. It is a desktop app: a Wails
+v3 window (Go backend) around a Tabulator grid.
 
-1. Navigate to your project directory in the terminal.
+## What it does
 
-2. To run your application in development mode, use the following command:
+- **A grid of names.** Load lists what is directly inside a folder — files and
+  subfolders, one level only, never into the subfolders — with extension, type,
+  created/modified time and size beside each name.
+- **Edit the name, keep the extension.** The Name column holds a file's name
+  without its extension — `/archive.tar.gz` is edited as `archive.tar`, with `gz`
+  shown in the Ext column — so the extension cannot be typed away. Folders keep
+  their whole name.
+- **Highlight and type once.** Highlight several rows (shift-click a range,
+  ctrl/cmd-click to toggle one), then type into any of them: every keystroke goes
+  into all of them. Cut, copy and paste act on each row's own characters.
+- **Macros.** Record the keys that rename one row, then Play them into a single row
+  or Play All into every row on screen (or just the highlighted ones).
+- **Undo.** The button or Ctrl/Cmd+Z, from anywhere. One edit is one step, a
+  multi-row edit is one step per keystroke, and a macro press is one step per row it
+  changed. Undo never closes an editor you are typing in.
+- **Filter and hide.** The Name header filter narrows the grid; dotfiles stay out of
+  the way until Ctrl/Cmd+H.
+- **Save is all or nothing.** Every name is checked before anything moves, and if a
+  rename fails the ones already done are put back.
 
-   ```
-   wails3 dev
-   ```
+## Requirements
 
-   This will start your application and enable hot-reloading for both frontend and backend changes.
+- Go 1.26 or newer
+- Node.js 20.19 or newer (or 22.12+) with npm — what Vite 8 requires
+- Linux: GTK 4 and WebKitGTK 6.0 headers for cgo (the binary links
+  `libgtk-4.so.1` and `libwebkitgtk-6.0.so.4` at runtime)
 
-3. To build your application for production, use:
+  ```sh
+  sudo apt install libgtk-4-dev libwebkitgtk-6.0-dev pkg-config gcc libc6-dev
+  ```
 
-   ```
-   wails3 build
-   ```
+- Optional, for the task shortcuts and hot reload: the Wails v3 CLI and go-task
 
-   This will create a production-ready executable in the `build` directory.
+  ```sh
+  go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+  go install github.com/go-task/task/v3/cmd/task@latest
+  ```
 
-## Exploring Wails3 Features
+## Build
 
-Now that you have your project set up, it's time to explore the features that Wails3 offers:
+The frontend is embedded in the binary (`//go:embed all:frontend/dist`), so it has
+to be built first:
 
-1. **Check out the examples**: The best way to learn is by example. Visit the `examples` directory in the `v3/examples` directory to see various sample applications.
+```sh
+cd frontend
+npm ci
+npm run build          # writes frontend/dist
+cd ..
+go build -o bin/MultiRenamer .
+```
 
-2. **Run an example**: To run any of the examples, navigate to the example's directory and use:
+The binary is `bin/MultiRenamer`.
 
-   ```
-   go run .
-   ```
+With the task shortcuts installed, the same thing (plus `go mod tidy`, regenerated
+bindings and the platform icon/desktop steps) is:
 
-   Note: Some examples may be under development during the alpha phase.
+```sh
+task build             # -> bin/MultiRenamer
+task package           # installers for this platform: AppImage and .deb on Linux
+```
 
-3. **Explore the documentation**: Visit the [Wails3 documentation](https://v3.wails.io/) for in-depth guides and API references.
+## Run
 
-4. **Join the community**: Have questions or want to share your progress? Join the [Wails Discord](https://discord.gg/JDdSxwjhGf) or visit the [Wails discussions on GitHub](https://github.com/wailsapp/wails/discussions).
+```sh
+./bin/MultiRenamer
+```
 
-## Project Structure
+For development, with hot reload of the frontend:
 
-Take a moment to familiarize yourself with your project structure:
+```sh
+task dev               # or: wails3 dev -config ./build/config.yml -port 9245
+```
 
-- `frontend/`: Contains your frontend code (HTML, CSS, JavaScript/TypeScript)
-- `main.go`: The entry point of your Go backend
-- `app.go`: Define your application structure and methods here
-- `wails.json`: Configuration file for your Wails project
+Linux is what this has been built and driven on; the packaging metadata for the
+other platforms comes from the Wails template.
 
-## Next Steps
+## Using it
 
-1. Modify the frontend in the `frontend/` directory to create your desired UI.
-2. Add backend functionality in `main.go`.
-3. Use `wails3 dev` to see your changes in real-time.
-4. When ready, build your application with `wails3 build`.
+1. **Load a folder.** Press `Load` and pick one, or drag a folder onto the window.
+   One dropped folder stands for what is inside it; drop several folders and the
+   folders themselves are listed, so they can be renamed. Dropped files are added as
+   themselves.
+2. **Narrow the list** if it helps: type in the `Filter` box under Name. Save still
+   saves every row in the grid, not only the visible ones.
+3. **Rename.** Click a row to select it, click it again to edit the name where the
+   mouse is. Enter or Tab commits; Escape cancels and puts back any rows the edit had
+   already reached.
+4. **Rename several at once.** Highlight a range with shift-click, or toggle rows with
+   ctrl/cmd-click, then type into one of them: every highlighted row gets the same
+   edit, keystroke by keystroke. While editing, up and down commit and move the edit
+   to the row above or below, taking the highlight with it.
+5. **Repeat a rename.** `Record`, make the edit in a row, then `Record` again to stop.
+   `Play` repeats it on one row; `Play All` on every row on screen, or only on the
+   highlighted rows if any are highlighted.
+6. **Undo.** `Undo` or Ctrl/Cmd+Z, from the grid or from inside an edit. One press
+   takes one edit back; in a multi-row edit one press takes a keystroke off every row
+   and leaves the editor open, so the next key carries on editing.
+7. **Save.** Every row whose name changed is renamed on disk.
 
-Happy coding with Wails3! If you encounter any issues or have questions, don't hesitate to consult the documentation or reach out to the Wails community.
+## Keyboard
+
+| Where | Keys | What happens |
+| --- | --- | --- |
+| Grid | Up / Down | move the highlight |
+| Grid | Shift + Up / Down | extend or shrink the highlight |
+| Grid | Click, then click again | select the row, then edit the name at that point |
+| Grid | Shift-click, Ctrl/Cmd-click | highlight a range, add or remove one row |
+| Grid | Ctrl/Cmd + H | show or hide dotfiles |
+| Grid | Ctrl/Cmd + Z | undo |
+| Editing | Enter, Tab | commit the name |
+| Editing | Escape | cancel, and undo what the edit had copied |
+| Editing | Up / Down | commit, then edit the row above or below |
+| Editing | Ctrl/Cmd + Z | undo one keystroke, editor stays open |
+
+## How it behaves
+
+- A load is one level deep: subfolders are listed, never entered.
+- Renaming is in place. Nothing moves between folders, and a name may not contain a
+  path separator.
+- Save works on the whole grid, not on the filtered view, and skips rows whose name
+  has not changed — so a file that keeps its odd spacing keeps it. An edited name is
+  trimmed before it is applied.
+- The extension is not editable and always goes back on. Directories have none.
+- Save checks every name before it moves anything: an empty name, `.`, `..`, a name
+  used twice in the grid, or a name already taken on disk is refused, and if a rename
+  fails the ones already made are put back.
+- The Setup window (top right) toggles dark mode and shows which build is running;
+  the same stamp is printed in the log at startup.
+
+## Project layout
+
+| Path | What is in it |
+| --- | --- |
+| `main.go` | the window, file drop, and the embedded frontend |
+| `app.go` | loading, renaming, the dialogs, the build stamp |
+| `frontend/index.html` | toolbar and grid markup |
+| `frontend/src/main.js` | grid setup, toolbar wiring, load and save |
+| `frontend/src/mirror.js` | multi-row editing: one edit, every highlighted row |
+| `frontend/src/history.js` | the undo stack behind the button and Ctrl/Cmd+Z |
+| `frontend/src/macro.js` | recording and replaying keystrokes |
+| `frontend/src/steps.js` | the editing vocabulary shared by the recorder and the multi-row edit |
+| `frontend/src/rowselection.js` | clicks and arrow keys: select, edit, move the highlight |
+| `frontend/src/caret.js` | keeps the caret offset when the edit moves between cells |
+| `frontend/src/hidden.js` | the dotfile filter |
+| `frontend/src/toolbar.js` | what each toolbar button can do |
+| `frontend/setup.html`, `frontend/src/setup.js` | the Setup window |
+| `frontend/src/style.css` | theme and grid overrides |
+
+## Checks
+
+```sh
+go vet ./...
+cd frontend && npm run typecheck
+```
