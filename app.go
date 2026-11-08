@@ -34,6 +34,24 @@ type FileInfo struct {
 	FullPath     string `json:"full_path"`
 }
 
+// Build is when this binary was made, so one build can be told from another: a
+// window left open from an earlier build otherwise looks exactly like this one.
+// The timestamp comes from the file itself, so it needs nothing special at build
+// time and cannot go stale against the code.
+func (a *App) Build() string {
+	executable, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+
+	info, err := os.Stat(executable)
+	if err != nil {
+		return ""
+	}
+
+	return info.ModTime().Format("2006-01-02 15:04")
+}
+
 // LoadDirectory opens a native directory picker and returns what is in the
 // chosen directory: its files and its subdirectories, one level only.
 func (a *App) LoadDirectory() ([]FileInfo, error) {

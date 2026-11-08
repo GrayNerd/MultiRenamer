@@ -209,6 +209,29 @@ body {
     border-color: #888888;
 }
 
+/* ---- Setup window ---- */
+.setup-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    background: var(--bg);
+    color: var(--fg);
+}
+
+.setup-container label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* The build the open window belongs to, so an older one is easy to spot. */
+.setup-container .build {
+    margin: 0;
+    font-size: 12px;
+    opacity: 0.6;
+}
+
 /* ---- Drop feedback ---- */
 /* Wails adds this class to the data-file-drop-target element (<body>) while a
    file drag hovers the window. The platform swallows the drag, so no DOM drag
