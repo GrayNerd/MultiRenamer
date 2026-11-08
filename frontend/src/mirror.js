@@ -5,10 +5,19 @@
 // macro recorder replays, so copy and cut take each row's own characters and
 // paste puts them back in that row.
 //
+// The steps are not taken on trust. After each change they are replayed against
+// the value the edit started on and compared with what the field actually
+// holds; anything they missed — a key another listener took first, a paste
+// nothing announced, an input method — is added to them as the change it turned
+// out to be. The other rows follow the text, not a memory of the keys.
+//
 // The other rows are written with row.update(): it changes the value and
 // redraws the cell without firing cellEdited (which would disturb the recorder
 // and the caret tracking) and without re-running the filters, so a row cannot
 // jump out of view while it is being typed into.
+//
+// sync() is for a write that comes from elsewhere — an undo while the editor is
+// still open — so the edit carries on from what the rows hold now.
 
 import { applySteps, stepForKey } from "./steps.js";
 
@@ -17,12 +26,24 @@ export function createMultiRowEditor(table, field = "name") {
 
     const onScreen = () => table.getRows("active");
 
-    const inputOf = (cell) => cell.getElement().querySelector("input");
-
     const isEditing = (cell) => {
         return session
             && cell.getField() === field
             && cell.getRow() === session.row;
+    };
+
+    // The editor the edit is read from. It is created after cellEditing, on the
+    // next frame, and it is kept once found rather than looked up again: a
+    // lookup that came back with another element would stop the copy dead
+    // halfway through an edit.
+    const editedInput = () => {
+        if (!session) return null;
+
+        if (!session.input || !session.input.isConnected) {
+            session.input = session.cell.getElement().querySelector("input");
+        }
+
+        return session.input;
     };
 
     // The rows this edit copies itself into: the rest of the highlighted set.
@@ -36,7 +57,34 @@ export function createMultiRowEditor(table, field = "name") {
         session.original.forEach((value, row) => row.update({[field]: value}));
     };
 
-    const mirror = () => {
+    // Where two values stop agreeing, how much of the old one is gone and what
+    // takes its place. Comparing from both ends finds a change in the middle of
+    // a name where it happened.
+    const difference = (was, now) => {
+        const shortest = Math.min(was.length, now.length);
+
+        let start = 0;
+        while (start < shortest && was[start] === now[start]) start += 1;
+
+        let end = 0;
+        while (end < shortest - start
+            && was[was.length - 1 - end] === now[now.length - 1 - end]) end += 1;
+
+        return {start, taken: was.length - start - end, added: now.slice(start, now.length - end)};
+    };
+
+    const mirror = (input) => {
+        // What the steps say the row being edited holds by now.
+        const replay = applySteps(session.value, session.startOffset ?? 0, session.steps, "");
+
+        // A change that never became a step still has to move the other rows.
+        if (replay.value !== input.value) {
+            if (session.startOffset === null) session.startOffset = replay.caret;
+
+            const edit = difference(replay.value, input.value);
+            session.steps.push({key: "Replace", at: edit.start, taken: edit.taken, added: edit.added});
+        }
+
         const rows = targets();
         if (!rows.length) return;
 
@@ -58,7 +106,17 @@ export function createMultiRowEditor(table, field = "name") {
 
     table.on("cellEditing", (cell) => {
         if (cell.getField() !== field) return;
-        session = {cell, row: cell.getRow(), startOffset: null, steps: [], original: new Map()};
+
+        const row = cell.getRow();
+        session = {
+            cell,
+            row,
+            input: null,
+            value: String(row.getData()[field] ?? ""),   // what the edit changes
+            startOffset: null,                           // the caret it began at
+            steps: [],
+            original: new Map(),                         // row -> its own text
+        };
     });
 
     table.on("cellEdited", (cell) => {
@@ -78,7 +136,7 @@ export function createMultiRowEditor(table, field = "name") {
     document.addEventListener("keydown", (e) => {
         if (!session) return;
 
-        const input = inputOf(session.cell);
+        const input = editedInput();
         if (!input || e.target !== input) return;
 
         const step = stepForKey(e, input);
@@ -102,7 +160,26 @@ export function createMultiRowEditor(table, field = "name") {
 
     // Once the editor has taken the change, do the same to the other rows.
     document.addEventListener("input", (e) => {
-        if (!session || e.target !== inputOf(session.cell)) return;
-        mirror();
+        const input = editedInput();
+        if (!input || e.target !== input) return;
+        mirror(input);
     }, true);
+
+    // Something outside this module put the rows back — an undo, with the editor
+    // still open. The edit carries on from what is there now: the field's text is
+    // the new starting point and the steps so far are gone, so the next keystroke
+    // copies into the other rows instead of replaying what was undone.
+    const sync = () => {
+        if (!session) return;
+
+        const input = editedInput();
+        if (!input) return;
+
+        session.value = input.value;
+        session.steps = [];
+        session.startOffset = null;
+        session.original.clear();
+    };
+
+    return {sync};
 }

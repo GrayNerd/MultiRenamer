@@ -86,6 +86,20 @@ export function applySteps(value, caret, steps, clipboard = "") {
                 }
                 break;
 
+            // A change copied out of the cell being edited, for when the keys it
+            // came from were never seen: how far in it happened, what came out
+            // and what went in its place. The recording never holds one; the
+            // live multi-row edit adds them to stay with the text.
+            case "Replace": {
+                const at = Math.min(step.at, value.length);
+                const gone = Math.min(at + step.taken, value.length);
+                const added = step.added ?? "";
+
+                value = value.slice(0, at) + added + value.slice(gone);
+                caret = at + added.length;
+                break;
+            }
+
             case "ArrowLeft":
                 caret = Math.max(0, caret - 1);
                 break;
