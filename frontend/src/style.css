@@ -152,6 +152,17 @@ body {
     background: var(--row-selected-hover) !important;
 }
 
+/* Cell text is shown exactly as it is. Without this HTML collapses a run of
+   spaces into one, so typing a second space into a name — on one row or across a
+   highlighted set — changes nothing on screen, and a leading or trailing space,
+   which may be the whole point of the rename, cannot be seen at all. `pre`
+   rather than `pre-wrap` keeps Tabulator's single line per cell. `!important`
+   because Tabulator's own `white-space: nowrap` sits in `.tabulator-row
+   .tabulator-cell`, which is as specific as a plain override here. */
+.tabulator .tabulator-row .tabulator-cell {
+    white-space: pre !important;
+}
+
 /* Rows are selectable, but the grid is for typing in: no pointer cursor. */
 .tabulator .tabulator-row.tabulator-selectable {
     cursor: default;
