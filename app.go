@@ -50,27 +50,43 @@ func (a *App) LoadDirectory() ([]FileInfo, error) {
 	return a.readDir(path)
 }
 
-// LoadPaths loads an explicit list of paths (used for drag‑and‑drop): a dropped
-// file is added, and a dropped folder contributes what is directly inside it,
-// subfolders included. Nothing is ever descended into, so the contents of those
-// subfolders never reach the grid.
+// LoadPaths loads an explicit list of paths (used for drag‑and‑drop).
+//
+// Files are always added as themselves. Folders go by how many were dropped: a
+// single one stands for what is inside it — its files and its subfolders, one
+// level only, never entered — while several are taken as the things to rename,
+// so the folders are listed themselves and their contents left alone.
 func (a *App) LoadPaths(paths []string) ([]FileInfo, error) {
-	var result []FileInfo
+	type dropped struct {
+		path string
+		info os.FileInfo
+	}
+
+	entries := make([]dropped, 0, len(paths))
+	dirs := 0
+
 	for _, p := range paths {
 		info, err := os.Stat(p)
 		if err != nil {
 			continue
 		}
 		if info.IsDir() {
-			sub, err := a.readDir(p)
-			if err != nil {
-				continue
-			}
-			result = append(result, sub...)
-		} else {
-			result = append(result, a.fileInfo(p, info))
+			dirs++
 		}
+		entries = append(entries, dropped{p, info})
 	}
+
+	var result []FileInfo
+	for _, e := range entries {
+		if e.info.IsDir() && dirs == 1 {
+			if contents, err := a.readDir(e.path); err == nil {
+				result = append(result, contents...)
+			}
+			continue
+		}
+		result = append(result, a.fileInfo(e.path, e.info))
+	}
+
 	return result, nil
 }
 
