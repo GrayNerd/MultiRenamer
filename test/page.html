@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/tabulator.css" />
+    <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+    <div id="toolbar">
+        <button id="btn-save" disabled>Save</button>
+        <button id="btn-undo" disabled>Undo</button>
+        <button id="btn-record" aria-pressed="false" disabled><span class="btn-label">Record</span></button>
+        <button id="btn-play" disabled>Play</button>
+        <button id="btn-playall" disabled>Play All</button>
+    </div>
+    <div id="grid" style="height: 420px"></div>
+    <pre id="out">running</pre>
+    <script>
+        // Surface anything that stops the module before it can report.
+        const show = (msg) => { document.getElementById("out").textContent = msg; };
+        window.addEventListener("error", (e) => show(`ERROR ${e.message} @ ${e.filename}:${e.lineno}`));
+        // Append rather than overwrite: the results are worth keeping.
+        window.addEventListener("unhandledrejection", (e) => {
+            const out = document.getElementById("out");
+            out.textContent = `${out.textContent}\nREJECTION ${e.reason}`;
+        });
+    </script>
+    <script type="module" src="/test.mjs"></script>
+</body>
+</html>

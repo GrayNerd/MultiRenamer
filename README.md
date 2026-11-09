@@ -163,6 +163,21 @@ go vet ./...
 cd frontend && npm run typecheck
 ```
 
+### Browser suite
+
+`test/` runs the frontend's own modules — the multi-row edit, the undo stack, the
+macro recorder, the toolbar and the filters — against the real Tabulator in a
+headless Chromium, driving keys and clicks the way a person would:
+
+```sh
+node test/run.mjs       # prints "RESULT <n> passed / <m> failed"; exits 1 on a failure
+```
+
+It needs `frontend/node_modules` (`cd frontend && npm ci`) and a Chromium binary —
+set `CHROME=/path/to/chromium` if it is not on your `PATH`. `PORT`, `DEBUG_PORT` and
+`TIMEOUT` are there if the defaults clash with something else. The page, the static
+server and the checks all live in `test/`.
+
 ## Licence
 
 MIT — see [LICENSE](LICENSE).
