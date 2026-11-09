@@ -162,3 +162,13 @@ other platforms comes from the Wails template.
 go vet ./...
 cd frontend && npm run typecheck
 ```
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).
+
+Copyright (c) 2026 Kenneth W. Boyd —
+[github.com/GrayNerd/MultiRenamer](https://github.com/GrayNerd/MultiRenamer)
+
+The copyright notice and the permission notice are part of the software: anyone who
+redistributes it, or a substantial portion of it, keeps both with it.
