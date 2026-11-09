@@ -32,6 +32,10 @@ type FileInfo struct {
 	DateModified string `json:"date_modified"`
 	Size         string `json:"size"`
 	FullPath     string `json:"full_path"`
+	// Failed is set by a save that could not rename the row: Name is put back to
+	// what is on disk and the grid shows it in red. FailedReason says why.
+	Failed       bool   `json:"failed"`
+	FailedReason string `json:"failed_reason"`
 }
 
 // Build is when this binary was made, so one build can be told from another: a
@@ -213,11 +217,37 @@ func (a *App) SaveRenames(rows []FileInfo) ([]FileInfo, error) {
 		if rows[i].Name != rows[i].OriginalName {
 			rows[i].Name = strings.TrimSpace(rows[i].Name)
 		}
+		rows[i].Failed = false
+		rows[i].FailedReason = ""
 	}
 
-	if err := renameRows(rows); err != nil {
-		a.showError("Save failed", err.Error())
-		return nil, err
+	if problems := renameRows(rows); problems != nil {
+		// Nothing moved. A row that could not be renamed goes back to the name it
+		// has on disk and is marked, so the grid can show it in red and the user can
+		// see which one to fix; the other rows keep what was typed, ready for
+		// another go.
+		refusals := make([]string, 0, len(problems))
+		for i := range rows {
+			if problems[i] == "" {
+				continue
+			}
+			rows[i].Name = rows[i].OriginalName
+			rows[i].Failed = true
+			rows[i].FailedReason = problems[i]
+			refusals = append(refusals, fmt.Sprintf("%s: %s", rows[i].OriginalName, problems[i]))
+		}
+
+		shown := refusals
+		if len(shown) > 5 {
+			shown = shown[:5]
+		}
+		message := strings.Join(shown, "\n")
+		if extra := len(refusals) - len(shown); extra > 0 {
+			message += fmt.Sprintf("\nand %d more", extra)
+		}
+		a.showError("Save failed", "Nothing was renamed.\n\n"+message)
+
+		return rows, nil
 	}
 
 	for i := range rows {
@@ -230,27 +260,36 @@ func (a *App) SaveRenames(rows []FileInfo) ([]FileInfo, error) {
 
 // renamePlan is one rename worked out from a grid row.
 type renamePlan struct {
+	row  int // which row of the save it belongs to
 	from string
 	to   string
 }
 
-// renameRows validates every changed row and then applies the renames.
-func renameRows(rows []FileInfo) error {
+// renameRows renames every row whose name changed, all of them or none: a name
+// that cannot be used leaves the folder untouched rather than half renamed. Rows
+// that were refused come back with the reason why, by index; nil means they all
+// moved.
+func renameRows(rows []FileInfo) []string {
 	plans := make([]renamePlan, 0, len(rows))
-	targets := make(map[string]bool, len(rows))
+	problems := make([]string, len(rows))
+	claimed := make(map[string]int, len(rows)) // target -> the row that wants it
+	refused := false
 
-	for _, row := range rows {
+	for i, row := range rows {
 		if row.Name == row.OriginalName {
 			continue // unchanged: the name still matches original_name
 		}
 		if err := checkNewName(row.Name); err != nil {
-			return fmt.Errorf("cannot rename %q: %w", row.OriginalName, err)
+			problems[i] = err.Error()
+			refused = true
+			continue
 		}
 
 		// The extension is not edited, so it has to go back on: the entry keeps
 		// the one it was loaded with.
 		dir := filepath.Dir(row.FullPath)
 		plan := renamePlan{
+			row:  i,
 			from: filepath.Join(dir, row.diskName(row.OriginalName)),
 			to:   filepath.Join(dir, row.diskName(row.Name)),
 		}
@@ -258,17 +297,29 @@ func renameRows(rows []FileInfo) error {
 			continue
 		}
 		if _, err := os.Lstat(plan.from); err != nil {
-			return fmt.Errorf("cannot rename %q: %w", row.OriginalName, err)
+			problems[i] = err.Error()
+			refused = true
+			continue
 		}
-		if targets[plan.to] {
-			return fmt.Errorf("cannot rename to %q: that name is used twice", row.Name)
+		if other, taken := claimed[plan.to]; taken {
+			// Both rows are as much at fault as each other.
+			problems[i] = fmt.Sprintf("%q is used twice", filepath.Base(plan.to))
+			problems[other] = problems[i]
+			refused = true
+			continue
 		}
 		if err := checkTargetFree(plan.from, plan.to); err != nil {
-			return err
+			problems[i] = err.Error()
+			refused = true
+			continue
 		}
 
-		targets[plan.to] = true
+		claimed[plan.to] = i
 		plans = append(plans, plan)
+	}
+
+	if refused {
+		return problems
 	}
 
 	done := make([]renamePlan, 0, len(plans))
@@ -278,7 +329,9 @@ func renameRows(rows []FileInfo) error {
 			for i := len(done) - 1; i >= 0; i-- {
 				_ = os.Rename(done[i].to, done[i].from)
 			}
-			return fmt.Errorf("cannot rename %q: %w", filepath.Base(plan.from), err)
+			problems = make([]string, len(rows))
+			problems[plan.row] = err.Error()
+			return problems
 		}
 		done = append(done, plan)
 	}

@@ -163,6 +163,16 @@ body {
     white-space: pre !important;
 }
 
+/* A name the last save could not change: it was put back to what is on disk, and
+   it stays red until it is edited again. */
+.tabulator .tabulator-row.rename-failed .tabulator-cell[tabulator-field="name"] {
+    color: #c62828 !important;
+}
+
+body.dark .tabulator .tabulator-row.rename-failed .tabulator-cell[tabulator-field="name"] {
+    color: #ff7b72 !important;
+}
+
 /* Rows are selectable, but the grid is for typing in: no pointer cursor. */
 .tabulator .tabulator-row.tabulator-selectable {
     cursor: default;

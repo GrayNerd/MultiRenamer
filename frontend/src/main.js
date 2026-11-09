@@ -10,6 +10,7 @@ import { createHiddenFiles } from "./hidden.js";
 import { createHistory } from "./history.js";
 import { createMacroRecorder } from "./macro.js";
 import { createMultiRowEditor } from "./mirror.js";
+import { forgetRefused, markRefused } from "./refused.js";
 import { setupRowSelection } from "./rowselection.js";
 import { createToolbarState } from "./toolbar.js";
 
@@ -27,6 +28,7 @@ const table = new Tabulator("#grid", {
     layout: "fitColumns",
     height: "100%",
     placeholder: "No files loaded",
+    rowFormatter: markRefused,
     columns: [
         // The header filter narrows the list to the names it matches; the rows
         // it hides stay in the grid (and are still saved) but are skipped by
@@ -76,6 +78,9 @@ setupRowSelection(table, "name");
 // history so that an undo leaves the edit carrying on from what it put back.
 const multiRow = createMultiRowEditor(table, "name");
 history.setMirror(multiRow);
+
+// A name a save could not change is shown in red until it is edited again.
+table.on("cellEdited", forgetRefused);
 
 // --------------------------------------------------
 // Toolbar — each click now calls the imported binding

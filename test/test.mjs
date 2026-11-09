@@ -8,6 +8,7 @@ import { createHiddenFiles } from "/src/hidden.js";
 import { setupRowSelection } from "/src/rowselection.js";
 import { createMultiRowEditor } from "/src/mirror.js";
 import { applySteps } from "/src/steps.js";
+import { forgetRefused, markRefused } from "/src/refused.js";
 
 // The undo stack lives in its own module, which older trees do not have; the rest
 // of the suite runs either way and the undo checks report that they were skipped.
@@ -54,6 +55,7 @@ const table = new Tabulator("#grid", {
     selectableRows: true,
     selectableRowsRangeMode: "click",
     editTriggerEvent: false,
+    rowFormatter: markRefused,
 });
 
 preserveCaretAcrossCells(table, "name");
@@ -78,6 +80,7 @@ const history = historyModule
 
 setupRowSelection(table, "name");
 const multiRow = createMultiRowEditor(table, "name");
+table.on("cellEdited", forgetRefused);
 if (historyModule) history.setMirror(multiRow);
 
 let macroChanges = 0;
@@ -903,6 +906,43 @@ async function multiRowEditSteps() {
         editedNames()[1] === "-2.txtwxyz" && editedNames()[2] === "-3.txtqrst",
         editedNames().join(" "));
     pressKey("Escape");
+
+    // ---- a name the save refused ------------------------------------------
+    // Go puts a refused name back to what is on disk and marks the row; the grid
+    // shows it in red with the reason on hover, until the name is edited again.
+    table.replaceData([
+        {name: "ok", original_name: "ok", failed: false, failed_reason: ""},
+        {name: "kept", original_name: "kept", failed: true, failed_reason: "that name is used twice"},
+    ]);
+    hiddenFiles.reset();
+    await tick(80);
+
+    const [fine, refused] = table.getRows();
+    check("refused: the marked row gets the class",
+        refused.getElement().classList.contains("rename-failed"),
+        refused.getElement().className);
+    check("refused: and the row that is fine does not",
+        !fine.getElement().classList.contains("rename-failed"),
+        fine.getElement().className);
+    check("refused: the reason is on the row, to hover",
+        refused.getElement().title === "that name is used twice", refused.getElement().title);
+    check("refused: the name is shown in red",
+        getComputedStyle(refused.getCell("name").getElement()).color === "rgb(198, 40, 40)",
+        getComputedStyle(refused.getCell("name").getElement()).color);
+    check("refused: the other row keeps its normal colour",
+        getComputedStyle(fine.getCell("name").getElement()).color !== "rgb(198, 40, 40)",
+        getComputedStyle(fine.getCell("name").getElement()).color);
+
+    // Typing a new name takes the mark away, ready for the next save. The first
+    // click selects the row; the next one opens the editor.
+    await clickCell(refused);
+    await clickCell(refused, "name", {x: "right"});
+    typeInto(editorInput(), "X");
+    pressKey("Enter");
+    await tick(80);
+    check("refused: editing the name clears the mark",
+        !refused.getElement().classList.contains("rename-failed") && !refused.getElement().title,
+        `${refused.getElement().className} title=${refused.getElement().title}`);
 
     // ---- Enter and Tab leave the edit -----------------------------------
     await load(["x1", "x2", "x3"]);

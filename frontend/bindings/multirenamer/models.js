@@ -80,6 +80,22 @@ export class FileInfo {
              */
             this["full_path"] = "";
         }
+        if (!("failed" in $$source)) {
+            /**
+             * Failed is set by a save that could not rename the row: Name is put back to
+             * what is on disk and the grid shows it in red. FailedReason says why.
+             * @member
+             * @type {boolean}
+             */
+            this["failed"] = false;
+        }
+        if (!("failed_reason" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["failed_reason"] = "";
+        }
 
         Object.assign(this, $$source);
     }
