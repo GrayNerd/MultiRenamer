@@ -1,7 +1,8 @@
 /**
- * TypeScript configuration for the frontend.
- * The frontend is now written in TypeScript; .svelte components use <script lang="ts">
- * and are type-checked by the Svelte tooling, while .ts files are checked here.
+ * TypeScript is here only for the type declarations the frontend leans on:
+ * src/vite-env.d.ts and the .d.ts files wails3 generates beside the bindings.
+ * The app itself is plain JavaScript — allowJs is off, so `npm run typecheck`
+ * checks those declarations, not the pages or the modules behind them.
  */
 {
   "compilerOptions": {

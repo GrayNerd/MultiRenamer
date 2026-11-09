@@ -15,8 +15,6 @@
     "tabulator-tables": "^6.3.1"
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^7.0.0",
-    "svelte": "^5.46.4",
     "typescript": "^5.8.0",
     "vite": "^8.0.5"
   }

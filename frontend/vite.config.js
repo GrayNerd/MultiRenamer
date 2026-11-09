@@ -1,5 +1,4 @@
 import { defineConfig } from "vite";
-import { svelte } from "@sveltejs/vite-plugin-svelte";
 import wails from "@wailsio/runtime/plugins/vite";
 
 // https://vitejs.dev/config/
@@ -9,7 +8,7 @@ export default defineConfig({
     port: Number(process.env.WAILS_VITE_PORT) || 9245,
     strictPort: true,
   },
-  plugins: [svelte(), wails("./bindings")],
+  plugins: [wails("./bindings")],
   // Both windows are pages of their own: without this only index.html is built
   // and the Setup window opens on nothing.
   build: {
