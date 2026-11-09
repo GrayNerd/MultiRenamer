@@ -1,0 +1,130 @@
+package main
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+// row puts a file on disk and hands back the grid's view of it. The name and
+// original_name are the stem — the extension is carried beside them and put back on
+// when a name is applied — so "a.txt" arrives as {Name: "a", Extension: "txt"}.
+func row(t *testing.T, dir, was, now string) FileInfo {
+	t.Helper()
+
+	full := filepath.Join(dir, was)
+	if err := os.WriteFile(full, []byte("x"), 0o644); err != nil {
+		t.Fatalf("writing %s: %v", full, err)
+	}
+
+	stem, extension := splitExtension(was, false)
+
+	return FileInfo{Name: now, OriginalName: stem, Extension: extension, FullPath: full}
+}
+
+func exists(t *testing.T, dir, name string) bool {
+	t.Helper()
+
+	_, err := os.Lstat(filepath.Join(dir, name))
+	return err == nil
+}
+
+func TestRenameRowsMovesEveryChangedName(t *testing.T) {
+	dir := t.TempDir()
+	rows := []FileInfo{row(t, dir, "a.txt", "one"), row(t, dir, "b.txt", "b")}
+
+	if problems := renameRows(rows); problems != nil {
+		t.Fatalf("unexpected refusals: %v", problems)
+	}
+
+	if !exists(t, dir, "one.txt") || exists(t, dir, "a.txt") {
+		t.Fatal("the changed row was not renamed, extension and all")
+	}
+	if !exists(t, dir, "b.txt") {
+		t.Fatal("the unchanged row was moved")
+	}
+}
+
+func TestRenameRowsRefusesEmptyNameAndLeavesEverythingAlone(t *testing.T) {
+	dir := t.TempDir()
+	rows := []FileInfo{row(t, dir, "a.txt", "one"), row(t, dir, "b.txt", "  ")}
+
+	problems := renameRows(rows)
+	if problems == nil {
+		t.Fatal("an empty name was accepted")
+	}
+	if problems[1] == "" {
+		t.Fatalf("the empty name was not reported: %v", problems)
+	}
+	if problems[0] != "" {
+		t.Fatalf("the good row was blamed too: %v", problems)
+	}
+
+	// All or nothing: the good row must not have moved either.
+	if !exists(t, dir, "a.txt") || exists(t, dir, "one.txt") {
+		t.Fatal("a refused save renamed something")
+	}
+}
+
+func TestRenameRowsBlamesBothRowsWhenANameIsUsedTwice(t *testing.T) {
+	dir := t.TempDir()
+	rows := []FileInfo{row(t, dir, "a.txt", "same"), row(t, dir, "b.txt", "same")}
+
+	problems := renameRows(rows)
+	if problems == nil {
+		t.Fatal("two rows wanting one name was accepted")
+	}
+	if problems[0] == "" || problems[1] == "" {
+		t.Fatalf("both rows should be blamed: %v", problems)
+	}
+}
+
+func TestRenameRowsRefusesANameAlreadyOnDisk(t *testing.T) {
+	dir := t.TempDir()
+	rows := []FileInfo{row(t, dir, "a.txt", "taken")}
+	if err := os.WriteFile(filepath.Join(dir, "taken.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	problems := renameRows(rows)
+	if problems == nil || problems[0] == "" {
+		t.Fatalf("an existing name was accepted: %q", problems)
+	}
+	if !exists(t, dir, "a.txt") {
+		t.Fatal("the row was renamed over an existing file")
+	}
+}
+
+func TestSaveRenamesMarksTheRefusedRowAndPutsItsNameBack(t *testing.T) {
+	dir := t.TempDir()
+	rows := []FileInfo{row(t, dir, "a.txt", "fine"), row(t, dir, "b.txt", "bad/name")}
+
+	// showError returns early without an application, so no window is needed here.
+	saved, err := (&App{}).SaveRenames(rows)
+	if err != nil {
+		t.Fatalf("a refused save reported an error instead of marking rows: %v", err)
+	}
+	if len(saved) != 2 {
+		t.Fatalf("want both rows back, got %d", len(saved))
+	}
+
+	if saved[0].Failed {
+		t.Error("the good row was marked as refused")
+	}
+	if !saved[1].Failed || saved[1].FailedReason == "" {
+		t.Errorf("the refused row was not marked: %+v", saved[1])
+	}
+	if saved[1].Name != saved[1].OriginalName {
+		t.Errorf("the refused name was not put back: %q, want %q", saved[1].Name, saved[1].OriginalName)
+	}
+	if saved[0].Name != "fine" {
+		t.Errorf("the other row lost what was typed: %q", saved[0].Name)
+	}
+
+	// Nothing on disk moved.
+	for _, name := range []string{"a.txt", "b.txt"} {
+		if !exists(t, dir, name) {
+			t.Errorf("%s is gone", name)
+		}
+	}
+}
