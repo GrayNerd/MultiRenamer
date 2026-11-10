@@ -33,6 +33,8 @@ const fileFor = (url) => {
     if (path === "/test.mjs") return join(here, "test.mjs");
     if (path === "/tabulator.js") return join(tabulator, "js", "tabulator_esm.mjs");
     if (path === "/tabulator.css") return join(tabulator, "css", "tabulator.min.css");
+    // A bare import the app lets Vite resolve; page.html's import map points at this.
+    if (path === "/ap-style-title-case.js") return join(frontend, "node_modules", "ap-style-title-case", "index.js");
     if (path.startsWith("/src/")) return inside(join(frontend, "src"), path.slice(5));
     if (path.startsWith("/bindings/")) return inside(join(frontend, "bindings"), path.slice(10));
 

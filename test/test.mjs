@@ -485,19 +485,33 @@ async function filterSteps() {
     await tick(120);
 }
 
-// Clean turns the dots and underscores a name was built with back into spaces.
+// Clean turns the separators a name was built with back into spaces, then gives the
+// result AP-style title case: a dash that joins the parts of a word counts as a
+// separator, a dash standing between two words does not.
 async function cleanSteps() {
     check("clean: dots and underscores become spaces",
-        cleanName("my_report.final") === "my report final", cleanName("my_report.final"));
+        cleanName("my_report.final") === "My Report Final", cleanName("my_report.final"));
     check("clean: a decimal point is kept",
-        cleanName("plate_25.4mm") === "plate 25.4mm", cleanName("plate_25.4mm"));
+        cleanName("plate_25.4mm") === "Plate 25.4mm", cleanName("plate_25.4mm"));
+    check("clean: a dash inside a word becomes a space",
+        cleanName("this-is-an-example") === "This Is an Example", cleanName("this-is-an-example"));
+    check("clean: a dash with a space beside it is left alone",
+        cleanName("1 - text") === "1 - Text", cleanName("1 - text"));
+    check("clean: a dash with a space on one side only is left alone",
+        cleanName("signed -by-hand") === "Signed -by Hand", cleanName("signed -by-hand"));
     check("clean: a leading dot stays, so the file stays hidden",
-        cleanName(".hidden_file") === ".hidden file", cleanName(".hidden_file"));
+        cleanName(".hidden_file") === ".Hidden File", cleanName(".hidden_file"));
     check("clean: runs of separators become one space",
-        cleanName("a__b..c") === "a b c", cleanName("a__b..c"));
-    check("clean: the ends are trimmed", cleanName("_name_") === "name", cleanName("_name_"));
-    check("clean: a name with nothing to clean is left alone",
-        cleanName("plain name") === "plain name", cleanName("plain name"));
+        cleanName("a__b..c") === "A B C", cleanName("a__b..c"));
+    check("clean: the ends are trimmed", cleanName("_name_") === "Name", cleanName("_name_"));
+    check("clean: the short words stay in lower case",
+        cleanName("the_end_of_it") === "The End of It", cleanName("the_end_of_it"));
+    check("clean: a word that is already capitalised keeps its spelling",
+        cleanName("README_file") === "README File", cleanName("README_file"));
+    check("clean: a name that is already clean and cased is left alone",
+        cleanName("My Report Final") === "My Report Final", cleanName("My Report Final"));
+    check("clean: a name with nothing left in it is not touched",
+        cleanName("_") === "_" && cleanName(".") === ".", `${cleanName("_")} ${cleanName(".")}`);
 
     const cleanBtn = document.getElementById("btn-clean");
 
@@ -512,7 +526,7 @@ async function cleanSteps() {
     cleanBtn.click();
     await tick(80);
     check("clean: the selected row is cleaned, the others are not",
-        editedNames().join(",") === "one_row.two,three row,four.five", editedNames().join(","));
+        editedNames().join(",") === "one_row.two,Three Row,four.five", editedNames().join(","));
     check("clean: the change counts as unsaved work", !buttons.save.disabled);
 
     // ---- every highlighted row is cleaned ------------------------------
@@ -524,7 +538,7 @@ async function cleanSteps() {
     cleanBtn.click();
     await tick(80);
     check("clean: every highlighted row is cleaned",
-        editedNames().join(",") === "a b,c d,e f,g_h", editedNames().join(","));
+        editedNames().join(",") === "A B,C D,E F,g_h", editedNames().join(","));
 
     // ---- undo puts them back, one row per press ------------------------
     if (historyModule) {

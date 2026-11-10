@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <link rel="stylesheet" href="/tabulator.css" />
     <link rel="stylesheet" href="/src/style.css" />
+    <!-- The app's modules are served as they are; a bare import the app's bundler
+         would resolve has to be pointed at the file here. -->
+    <script type="importmap">
+        {"imports": {"ap-style-title-case": "/ap-style-title-case.js"}}
+    </script>
 </head>
 <body>
     <div id="toolbar">

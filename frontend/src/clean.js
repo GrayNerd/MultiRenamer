@@ -1,13 +1,25 @@
-// "Clean" turns the separators a name was built with back into spaces:
-// "my_report.final" becomes "my report final".
+// "Clean" turns the separators a name was built with back into spaces and gives the
+// result AP-style title case: "my_report.final" becomes "My Report Final" and
+// "this-is-an-example" becomes "This Is an Example".
 //
 // A dot between two digits is left alone, so a decimal survives ("plate_25.4mm"
-// becomes "plate 25.4mm"), and a leading dot stays because on Unix that is what
-// hides the file (".hidden_file" becomes ".hidden file"). Runs of separators
-// become a single space, and the ends are trimmed; a name that would be left with
-// nothing in it is not touched at all.
+// becomes "Plate 25.4mm"), and a leading dot stays because on Unix that is what
+// hides the file (".hidden_file" becomes ".Hidden File"). A dash joins the parts of
+// one word and becomes a space, but one that already has a space beside it is a dash
+// between words — "1 - text" — and is left as it is. Runs of separators become a
+// single space, and the ends are trimmed; a name that would be left with nothing in
+// it is not touched at all.
+//
+// The capitalisation is ap-style-title-case's: the words that carry the meaning are
+// capitalised, the short joiners are not, and a word that is already capitalised
+// inside keeps its own spelling, so "README_file" becomes "README File".
+import { apStyleTitleCase } from "ap-style-title-case";
 
 const isDigit = (character) => character >= "0" && character <= "9";
+
+// A space beside a dash means the dash is standing on its own between two words,
+// not joining the parts of one.
+const isSpace = (character) => character === " " || character === "\t";
 
 // The cleaned version of a name.
 export function cleanName(name) {
@@ -21,11 +33,14 @@ export function cleanName(name) {
     for (let i = 0; i < body.length; i += 1) {
         const character = body[i];
         const decimalPoint = character === "." && isDigit(body[i - 1]) && isDigit(body[i + 1]);
+        const joinedDash = character === "-" && !isSpace(body[i - 1]) && !isSpace(body[i + 1]);
 
-        out += character === "_" || (character === "." && !decimalPoint) ? " " : character;
+        const separator = character === "_" || joinedDash || (character === "." && !decimalPoint);
+        out += separator ? " " : character;
     }
 
-    out = out.replace(/\s+/g, " ").trim();
+    // One space where there were several, and nothing at either end.
+    out = apStyleTitleCase(out.replace(/\s+/g, " ").trim());
 
     const cleaned = hidden ? "." + out : out;
 
