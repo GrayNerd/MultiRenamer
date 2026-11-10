@@ -138,7 +138,9 @@ other platforms comes from the Wails template.
   with the reason on hover, until its name is edited again. The other rows keep what
   was typed, so once the offending name is fixed the save can be made again.
 - The Setup window (top right) toggles dark mode and shows which build is running;
-  the same stamp is printed in the log at startup.
+  the same stamp is printed in the log at startup. Closed on its own it only hides,
+  so the button brings it back; closing the main window closes it for real, along
+  with the rest of the app.
 
 ## Project layout
 

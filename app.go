@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -17,6 +18,11 @@ type App struct {
 	app         *application.App
 	mainWindow  *application.WebviewWindow
 	setupWindow *application.WebviewWindow
+
+	// mainClosing is set as the main window closes. From then on the setup window
+	// may close for real: hiding it would leave it as the last window standing,
+	// and the application only quits once its last window is gone.
+	mainClosing atomic.Bool
 }
 
 type FileInfo struct {
@@ -381,12 +387,29 @@ func (a *App) showError(title, message string) {
 // setupWindowName identifies the setup window in the window registry.
 const setupWindowName = "setup"
 
+// closeOtherWindows closes every window but the main one, the main window having
+// started to close. The application only quits when its last window is gone, and
+// the setup window hides rather than closes when it is closed on its own, so
+// without this it would outlive the main window and leave the application running
+// with nothing on screen.
+func (a *App) closeOtherWindows() {
+	a.mainClosing.Store(true)
+
+	for _, w := range a.app.Window.GetAll() {
+		if w.ID() != a.mainWindow.ID() {
+			w.Close()
+		}
+	}
+}
+
 // newSetupWindow builds the hidden setup window.
 //
 // Closing it only hides it. Wails destroys a window whose close is not
 // cancelled (it is then dropped from the registry, and Show cannot revive a
 // destroyed window), so letting the close through would leave the Setup button
-// permanently dead after the window had been closed once.
+// permanently dead after the window had been closed once. The exception is the
+// app going with the main window: then it has to close for real, or it would be
+// the last window standing and the app would never quit.
 func (a *App) newSetupWindow() *application.WebviewWindow {
 	w := a.app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:   setupWindowName,
@@ -397,6 +420,9 @@ func (a *App) newSetupWindow() *application.WebviewWindow {
 		URL:    "/setup.html",
 	})
 	w.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
+		if a.mainClosing.Load() {
+			return
+		}
 		w.Hide()
 		e.Cancel()
 	})

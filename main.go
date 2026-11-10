@@ -35,9 +35,17 @@ func main() {
 		URL:            "/",
 	})
 
-	// Hidden until the Setup button asks for it, and only ever hidden by its
-	// close button — see newSetupWindow.
+	// Hidden until the Setup button asks for it, and its own close button only
+	// hides it — see newSetupWindow. It closes for real only when the app goes
+	// with the main window.
 	app.setupWindow = app.newSetupWindow()
+
+	// Closing the main window closes the app, setup window included: the app
+	// only quits once its last window is gone, and the setup window only hides
+	// when it is closed on its own.
+	app.mainWindow.RegisterHook(events.Common.WindowClosing, func(event *application.WindowEvent) {
+		app.closeOtherWindows()
+	})
 
 	app.mainWindow.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {
 		files := event.Context().DroppedFiles()
