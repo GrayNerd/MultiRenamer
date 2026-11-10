@@ -21,6 +21,15 @@ type App struct {
 	mainWindow  *application.WebviewWindow
 	setupWindow *application.WebviewWindow
 
+	// windowState is the size and place the main window was left at, when it was
+	// asked to be kept; hasWindowState says whether there is one to restore.
+	windowState    WindowState
+	hasWindowState bool
+
+	// mainShown is set once the main window has been shown, so the page asking for
+	// it and the fallback timer cannot both do it.
+	mainShown atomic.Bool
+
 	// config is what the Setup window saved and the grid is using. The mutex
 	// keeps the reads (a window drawing itself, the geometry being saved on the
 	// way out) away from a save that is writing it.
@@ -451,6 +460,45 @@ func (a *App) newSetupWindow() *application.WebviewWindow {
 		e.Cancel()
 	})
 	return w
+}
+
+// ShowMain shows the main window.
+//
+// The window is made hidden, and this is called once the page has applied the
+// saved options, so it is never seen in the wrong place or the wrong theme. It
+// acts once, whichever of the page and the fallback timer gets there first.
+func (a *App) ShowMain() {
+	if a.mainWindow == nil || a.mainShown.Swap(true) {
+		return
+	}
+
+	// The window is put up first and moved once it is up: a window manager places a
+	// new window where it likes, and a move asked for before it has done that is
+	// thrown away. It is minimised for that moment, so the move is made while it is
+	// out of sight and it is brought back where it belongs.
+	a.mainWindow.Show()
+	if a.hasWindowState {
+		a.mainWindow.Minimise()
+
+		go func() {
+			time.Sleep(80 * time.Millisecond) // the window manager has placed it by now
+			a.mainWindow.SetPosition(a.windowState.X, a.windowState.Y)
+
+			time.Sleep(40 * time.Millisecond) // and has taken the move
+			a.mainWindow.UnMinimise()
+
+			// Coming back and being raised are two steps to the window manager, and
+			// a raise asked for while the window is still coming back is lost, so
+			// it is asked for until the window has the focus.
+			for attempt := 0; attempt < 10 && !a.mainWindow.IsFocused(); attempt++ {
+				a.mainWindow.Focus()
+				time.Sleep(50 * time.Millisecond)
+			}
+		}()
+		return
+	}
+
+	a.mainWindow.Focus()
 }
 
 // ShowSetup shows the setup window over the middle of the main window.

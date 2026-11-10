@@ -105,6 +105,18 @@ export function SaveRenames(rows) {
 }
 
 /**
+ * ShowMain shows the main window.
+ * 
+ * The window is made hidden, and this is called once the page has applied the
+ * saved options, so it is never seen in the wrong place or the wrong theme. It
+ * acts once, whichever of the page and the fallback timer gets there first.
+ * @returns {$CancellablePromise<void>}
+ */
+export function ShowMain() {
+    return $Call.ByID(3639398305);
+}
+
+/**
  * ShowSetup shows the setup window over the middle of the main window.
  * @returns {$CancellablePromise<void>}
  */

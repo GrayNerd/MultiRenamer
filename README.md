@@ -198,6 +198,8 @@ that last option is on; it holds the main window's width, height and position.
 
 Whatever is in the files is read when the program starts, so a hand-edited
 `config.json` is honoured. A missing or unreadable file falls back to the defaults.
+The window is made hidden until then, and put up once the theme and the stored size
+and place are in effect, so it is never seen in the light theme or in the wrong spot.
 
 ## Project layout
 

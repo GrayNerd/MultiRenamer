@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"log"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -13,8 +14,10 @@ var assets embed.FS
 
 // mainWindowOptions is the window the program opens with: 1200×800, unless the
 // window's size and place were asked to be remembered and there is one stored to
-// restore.
-func mainWindowOptions(state WindowState, restore bool) application.WebviewWindowOptions {
+// restore. It is made hidden, because a window shown at creation is seen in the
+// wrong place and the wrong theme before it is put right: App.ShowMain shows it
+// once the page has applied the saved options.
+func mainWindowOptions(cfg Config, state WindowState, restore bool) application.WebviewWindowOptions {
 	options := application.WebviewWindowOptions{
 		Name:           "main",
 		Title:          "MultiRenamer",
@@ -22,19 +25,31 @@ func mainWindowOptions(state WindowState, restore bool) application.WebviewWindo
 		Height:         800,
 		EnableFileDrop: true,
 		URL:            "/",
+		Hidden:         true,
+		// The colour behind the page, so the first frame is not a white flash on a
+		// dark theme.
+		BackgroundColour: themeBackground(cfg.Theme),
 	}
 
 	if !restore {
 		return options
 	}
 
-	// Only the size is asked for here. The place is set once the window is up:
-	// a position asked for while the window is being made is read relative to the
-	// monitor by the platform, which is not what was stored.
+	// Only the size is asked for here: the place is set once the window is up,
+	// which is the first moment a move is honoured — see App.ShowMain.
 	options.Width = state.Width
 	options.Height = state.Height
 
 	return options
+}
+
+// themeBackground is the window colour that goes with a theme, matching the page's
+// own background.
+func themeBackground(theme string) application.RGBA {
+	if theme == themeDark {
+		return application.NewRGB(0x2b, 0x2b, 0x2b)
+	}
+	return application.NewRGB(0xff, 0xff, 0xff)
 }
 
 func main() {
@@ -63,22 +78,13 @@ func main() {
 	})
 	app.app = a
 
-	app.mainWindow = a.Window.NewWithOptions(mainWindowOptions(state, restore))
+	app.mainWindow = a.Window.NewWithOptions(mainWindowOptions(cfg, state, restore))
+	app.windowState, app.hasWindowState = state, restore
 
-	// A window manager may put a new window where it likes, whatever it was asked
-	// for when it was made. The stored place is asked for again once the window is
-	// up, which a window manager does honour — once, so a move the user makes
-	// afterwards is not undone.
-	if restore {
-		moved := false
-		app.mainWindow.OnWindowEvent(events.Common.WindowShow, func(*application.WindowEvent) {
-			if moved {
-				return // only the first show: a move the user makes later is left alone
-			}
-			moved = true
-			app.mainWindow.SetPosition(state.X, state.Y)
-		})
-	}
+	// The page asks for the window once it has applied the saved options. This is
+	// the backstop: a page that never gets that far cannot leave the app with no
+	// window on screen.
+	time.AfterFunc(3*time.Second, app.ShowMain)
 
 	// Hidden until the Setup button asks for it, and its own close button only
 	// hides it — see newSetupWindow. It closes for real only when the app goes

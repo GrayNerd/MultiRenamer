@@ -205,10 +205,13 @@ Events.On("files-dropped", async (ev) => {
 });
 
 // The options from the Setup window: applied when the grid starts, and again
-// whenever they are saved, so a change shows without a restart.
+// whenever they are saved, so a change shows without a restart. The window is
+// made hidden until this has happened, so it is never seen in the light theme or
+// in the wrong place before the options are on; ShowMain is what puts it up.
 App.GetConfig()
     .then((cfg) => applyPreferences(table, cfg))
-    .catch((err) => console.error("GetConfig failed:", err));
+    .catch((err) => console.error("GetConfig failed:", err))
+    .finally(() => App.ShowMain().catch((err) => console.error("ShowMain failed:", err)));
 
 Events.On("config-changed", (ev) => applyPreferences(table, ev.data));
 
