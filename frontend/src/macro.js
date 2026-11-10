@@ -20,6 +20,7 @@
 // the start of the name to the end works on every row's own date.
 
 import { STOP_KEYS, applySteps, stepForKey } from "./steps.js";
+import { isOvertyping } from "./overtype.js";
 
 // controls: {record, play, playAll} button elements. The record button needs a
 // .btn-label child (its icon is swapped through aria-pressed in the stylesheet).
@@ -175,7 +176,9 @@ export function createMacroRecorder(table, controls, field = "name", onStateChan
         if (!input || e.target !== input) return;
 
         // Everything else (select all, undo…) is left to the browser.
-        const step = stepForKey(e, input);
+        // Whether the field is overtyping goes with the key, so that a replay
+        // replaces the character at the caret rather than widening the name.
+        const step = stepForKey(e, input, isOvertyping());
         if (!step) return;
 
         // keydown fires before the key is applied, so the first recorded key

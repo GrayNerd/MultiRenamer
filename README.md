@@ -118,6 +118,7 @@ other platforms comes from the Wails template.
 | Grid | Ctrl/Cmd + H | show or hide dotfiles |
 | Grid | Ctrl/Cmd + Z | undo |
 | Editing | Enter, Tab | commit the name |
+| Editing | Insert | switch between inserting and overtyping |
 | Editing | Escape | cancel, and undo what the edit had copied |
 | Editing | Up / Down | commit, then edit the row above or below |
 | Editing | Ctrl/Cmd + Z | undo one keystroke, editor stays open |
@@ -131,6 +132,11 @@ other platforms comes from the Wails template.
   has not changed — so a file that keeps its odd spacing keeps it. An edited name is
   trimmed before it is applied.
 - The extension is not editable and always goes back on. Directories have none.
+- Editing inserts by default; the Insert key switches the field to overtyping, where a
+  typed character replaces the one under the caret, and the caret is drawn as a
+  rectangle over that character instead of a vertical bar. The mode is not per edit:
+  once overtyping is on it stays on, from row to row and edit to edit, until Insert
+  switches it back.
 - Save checks every name before it moves anything: an empty name, `.`, `..`, a name
   used twice in the grid, or a name already taken on disk is refused, and if a rename
   fails the ones already made are put back.
@@ -156,6 +162,7 @@ other platforms comes from the Wails template.
 | `frontend/src/steps.js` | the editing vocabulary shared by the recorder and the multi-row edit |
 | `frontend/src/rowselection.js` | clicks and arrow keys: select, edit, move the highlight |
 | `frontend/src/caret.js` | keeps the caret offset when the edit moves between cells |
+| `frontend/src/overtype.js` | insert vs overtype, and the caret that shows which is on |
 | `frontend/src/hidden.js` | the dotfile filter |
 | `frontend/src/toolbar.js` | what each toolbar button can do |
 | `frontend/setup.html`, `frontend/src/setup.js` | the Setup window |

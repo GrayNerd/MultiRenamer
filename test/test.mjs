@@ -8,6 +8,7 @@ import { createHiddenFiles } from "/src/hidden.js";
 import { setupRowSelection } from "/src/rowselection.js";
 import { createMultiRowEditor } from "/src/mirror.js";
 import { applySteps } from "/src/steps.js";
+import { createOvertype } from "/src/overtype.js";
 import { forgetRefused, markRefused } from "/src/refused.js";
 
 // The undo stack lives in its own module, which older trees do not have; the rest
@@ -82,6 +83,9 @@ setupRowSelection(table, "name");
 const multiRow = createMultiRowEditor(table, "name");
 table.on("cellEdited", forgetRefused);
 if (historyModule) history.setMirror(multiRow);
+
+// Insert and overtype, wired last as in main.js.
+createOvertype(table, "name");
 
 let macroChanges = 0;
 createMacroRecorder(table, buttons, "name", (state) => {
@@ -341,6 +345,7 @@ async function highlights() {
     await homeEndSteps();
     await rowselectionSteps();
     await multiRowEditSteps();
+    await overtypeSteps();
     await extensionSteps();
     await hiddenSteps();
     if (historyModule) await undoSteps();
@@ -778,12 +783,16 @@ const pressKey = (key, {ctrl = false, shift = false, target} = {}) => {
     return event.defaultPrevented;
 };
 
+// A keypress as the browser applies it: the character replaces whatever is
+// selected — nothing, unless overtype has taken the character at the caret into
+// the selection (see overtype.js), or a range was highlighted.
 const typeInto = (input, text) => {
     for (const character of text) {
         input.dispatchEvent(new KeyboardEvent("keydown", {key: character, bubbles: true}));
-        const at = input.selectionStart ?? input.value.length;
-        input.value = input.value.slice(0, at) + character + input.value.slice(at);
-        input.setSelectionRange(at + 1, at + 1);
+        const from = input.selectionStart ?? input.value.length;
+        const to = Math.max(from, input.selectionEnd ?? from);
+        input.value = input.value.slice(0, from) + character + input.value.slice(to);
+        input.setSelectionRange(from + 1, from + 1);
         input.dispatchEvent(new Event("input", {bubbles: true}));
     }
 };
@@ -1209,6 +1218,158 @@ async function multiRowEditSteps() {
         info("text-derived mirror checks skipped: this tree's steps.js has no Replace step");
     }
 
+}
+
+
+// Insert and overtype: the Insert key switches, the caret says which mode is on,
+// and the mode outlives the edit it was set in.
+const overtypeCaret = () => editorCell()?.querySelector(".overtype-caret") ?? null;
+const caretShown = () => {
+    const block = overtypeCaret();
+    return !!block && !block.hidden;
+};
+
+// The caret placed where a person would put it: the field, then the event the
+// browser sends for the move, which is what places the rectangle again.
+const placeCaret = async (at) => {
+    const input = editorInput();
+    input.setSelectionRange(at, at);
+    input.dispatchEvent(new KeyboardEvent("keyup", {key: "ArrowRight", bubbles: true}));
+    await tick(20);
+};
+
+async function overtypeSteps() {
+    // ---- the steps carry the mode --------------------------------------
+    check("overtype: a marked step replaces the character at the caret",
+        applySteps("abcd", 1, [{key: "X", overtype: true}], "").value === "aXcd",
+        applySteps("abcd", 1, [{key: "X", overtype: true}], "").value);
+    check("overtype: a marked step at the end still widens",
+        applySteps("ab", 2, [{key: "X", overtype: true}], "").value === "abX",
+        applySteps("ab", 2, [{key: "X", overtype: true}], "").value);
+    check("overtype: a character outside the BMP is replaced whole",
+        applySteps("a\u{1F600}b", 1, [{key: "X", overtype: true}], "").value === "aXb",
+        applySteps("a\u{1F600}b", 1, [{key: "X", overtype: true}], "").value);
+    check("overtype: an unmarked step widens",
+        applySteps("abcd", 1, [{key: "X"}], "").value === "aXbcd",
+        applySteps("abcd", 1, [{key: "X"}], "").value);
+
+    // ---- insert is the default -----------------------------------------
+    await load(["abcdef-1.txt", "abcdef-2.txt"]);
+    const rows = table.getRows("active");
+    await clickCell(rows[0]);
+    await clickCell(rows[0], "name", {x: "left"});
+    check("overtype: the editor is open", !!editorInput());
+    check("overtype: insert is the default",
+        !caretShown() && !editorInput().classList.contains("overtype"),
+        editorCell()?.innerHTML);
+
+    await placeCaret(2);
+    typeInto(editorInput(), "X");
+    check("overtype: inserting widens the name",
+        editorInput().value === "abXcdef-1.txt", editorInput().value);
+    check("overtype: the caret moves past what was typed",
+        editorInput().selectionStart === 3, editorInput().selectionStart);
+
+    // ---- Insert switches to overtyping ---------------------------------
+    check("overtype: the Insert key is taken", pressKey("Insert"));
+    check("overtype: the rectangle replaces the bar",
+        caretShown() && editorInput().classList.contains("overtype"),
+        editorCell()?.innerHTML);
+
+    typeInto(editorInput(), "Y");
+    check("overtype: typing replaces the character at the caret",
+        editorInput().value === "abXYdef-1.txt", editorInput().value);
+    check("overtype: the caret moves past the character typed over",
+        editorInput().selectionStart === 4, editorInput().selectionStart);
+
+    // ---- the rectangle follows the caret -------------------------------
+    const blockLeft = () => overtypeCaret()?.getBoundingClientRect().left ?? -1;
+    const blockWidth = () => overtypeCaret()?.getBoundingClientRect().width ?? 0;
+
+    await placeCaret(0);
+    const leftAtStart = blockLeft();
+    const width = blockWidth();
+    await placeCaret(6);
+    const leftLater = blockLeft();
+
+    check("overtype: the rectangle follows the caret",
+        leftAtStart >= 0 && leftLater > leftAtStart, `${leftAtStart} -> ${leftLater}`);
+    check("overtype: the rectangle covers a character, not the cell",
+        width > 0 && width < editorCell().getBoundingClientRect().width / 2, width);
+
+    const input = editorInput();
+    input.setSelectionRange(1, 4);
+    input.dispatchEvent(new KeyboardEvent("keyup", {key: "ArrowRight", bubbles: true}));
+    await tick(20);
+    check("overtype: the rectangle hides while text is highlighted", !caretShown());
+
+    input.setSelectionRange(2, 2);
+    input.dispatchEvent(new KeyboardEvent("keyup", {key: "ArrowRight", bubbles: true}));
+    await tick(20);
+    check("overtype: and comes back for the caret", caretShown());
+
+    // ---- at the end of the value there is nothing to replace -----------
+    await placeCaret(editorInput().value.length);
+    typeInto(editorInput(), "Z");
+    check("overtype: at the end the character is added",
+        editorInput().value === "abXYdef-1.txtZ", editorInput().value);
+
+    // ---- Insert switches back ------------------------------------------
+    pressKey("Insert");
+    check("overtype: insert is back, and the bar with it",
+        !caretShown() && !editorInput().classList.contains("overtype"),
+        editorCell()?.innerHTML);
+
+    await placeCaret(1);
+    typeInto(editorInput(), "Q");
+    check("overtype: inserting again widens the name",
+        editorInput().value === "aQbXYdef-1.txtZ", editorInput().value);
+
+    // ---- the mode lasts between edits ----------------------------------
+    pressKey("Insert");
+    check("overtype: overtyping is on again", caretShown());
+
+    pressKey("Enter");
+    await tick(80);
+    check("overtype: committing closes the editor", !editorCell(), editingWhere());
+
+    await clickCell(rows[1]);
+    await clickCell(rows[1], "name", {x: "left"});
+    check("overtype: the next edit opens still overtyping",
+        caretShown() && editorInput().classList.contains("overtype"),
+        editorCell()?.innerHTML);
+
+    await placeCaret(0);
+    typeInto(editorInput(), "M");
+    check("overtype: and replaces there too",
+        editorInput().value === "Mbcdef-2.txt", editorInput().value);
+
+    pressKey("Enter");
+    await tick(80);
+
+    // ---- a recorded replacement replays as one -------------------------
+    await load(["wxyz-1.txt", "wxyz-2.txt", "wxyz-3.txt", "wxyz-4.txt"]);
+    const recorder = openEditor(table.getRows("active")[0], [1, 1]);
+    buttons.record.click();
+    await tick();
+
+    typeInto(recorder, "A");
+
+    buttons.record.click();
+    await tick();
+
+    buttons.playAll.click();
+    await tick(120);
+    check("overtype: a recorded replacement replaces in every row",
+        editedNames().join(" ") === "wAyz-1.txt wAyz-2.txt wAyz-3.txt wAyz-4.txt",
+        editedNames().join(" "));
+
+    // ---- leave the grid inserting --------------------------------------
+    openEditor(table.getRows("active")[0], [0, 0]);
+    pressKey("Insert");
+    check("overtype: Insert turns it off for the rest of the run", !caretShown());
+    pressKey("Enter");
+    await tick(80);
 }
 
 

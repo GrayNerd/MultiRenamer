@@ -10,6 +10,7 @@ import { createHiddenFiles } from "./hidden.js";
 import { createHistory } from "./history.js";
 import { createMacroRecorder } from "./macro.js";
 import { createMultiRowEditor } from "./mirror.js";
+import { createOvertype } from "./overtype.js";
 import { forgetRefused, markRefused } from "./refused.js";
 import { setupRowSelection } from "./rowselection.js";
 import { createToolbarState } from "./toolbar.js";
@@ -78,6 +79,10 @@ setupRowSelection(table, "name");
 // history so that an undo leaves the edit carrying on from what it put back.
 const multiRow = createMultiRowEditor(table, "name");
 history.setMirror(multiRow);
+
+// Insert and overtype: the Insert key switches between them and the caret shows
+// which one is on. Overtype lasts until Insert is pressed again, across edits.
+createOvertype(table, "name");
 
 // A name a save could not change is shown in red until it is edited again.
 table.on("cellEdited", forgetRefused);

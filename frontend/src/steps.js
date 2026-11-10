@@ -1,6 +1,6 @@
-// The editing vocabulary shared by the macro recorder, its playback, and the
-// live multi-row edit: which keys end a recording, which ones edit or move, and
-// what applying them to a value does.
+// The editing vocabulary shared by the macro recorder, its playback, the live
+// multi-row edit, and the overtype mode: which keys end a recording, which ones
+// edit or move, and what applying them to a value does.
 
 // Keys that end a recording instead of being recorded. Escape closes the
 // editor, so anything typed after it belongs to a different edit.
@@ -17,7 +17,11 @@ const CLIPBOARD_KEYS = {c: "Copy", x: "Cut", v: "Paste"};
 // Copy, cut and paste carry the range that was highlighted in `input` when the
 // key was pressed: that range is what they act on, here and in every cell the
 // step is later replayed into.
-export function stepForKey(e, input) {
+//
+// A character typed while the field is overtyping is marked as such, so a replay
+// replaces the character at the caret in the cell it is applied to instead of
+// widening it — the same thing the key did where it was recorded.
+export function stepForKey(e, input, overtyping = false) {
     if (e.altKey) return null;
 
     if (e.ctrlKey || e.metaKey) {
@@ -29,9 +33,21 @@ export function stepForKey(e, input) {
         return {key, from, to};
     }
 
-    if (e.key.length === 1 || EDIT_KEYS.includes(e.key)) return {key: e.key};
+    if (e.key.length === 1) {
+        return overtyping ? {key: e.key, overtype: true} : {key: e.key};
+    }
+
+    if (EDIT_KEYS.includes(e.key)) return {key: e.key};
 
     return null;
+}
+
+// How much of a value one character at an offset takes up: a character outside
+// the BMP (an emoji, say) is two UTF-16 units, and overtyping it has to take
+// both of them, in the field and in every cell the step is replayed into.
+export function characterLength(value, at) {
+    if (at < 0 || at >= value.length) return 0;
+    return value.codePointAt(at) > 0xffff ? 2 : 1;
 }
 
 // Applies steps to a value, starting at a caret offset. The clipboard is passed
@@ -120,7 +136,12 @@ export function applySteps(value, caret, steps, clipboard = "") {
 
             default:
                 if (key.length === 1) {
-                    value = value.slice(0, caret) + key + value.slice(caret);
+                    // Typed over the text: the character at the caret gives way
+                    // to this one. At the end of the value there is nothing to
+                    // replace, and it is added like any other character.
+                    const taken = step.overtype ? characterLength(value, caret) : 0;
+
+                    value = value.slice(0, caret) + key + value.slice(caret + taken);
                     caret += 1;
                 }
         }

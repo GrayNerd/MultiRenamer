@@ -219,6 +219,23 @@ body.dark .tabulator .tabulator-row.rename-failed .tabulator-cell[tabulator-fiel
     border-color: #888888;
 }
 
+/* ---- Overtype ---- */
+/* Overtyping marks the caret as a rectangle over the character the next key
+   replaces, so the browser's own vertical bar is hidden and overtype.js draws
+   the rectangle in its place. It is translucent rather than solid so that the
+   character underneath stays readable. */
+.tabulator .tabulator-cell.tabulator-editing input.overtype {
+    caret-color: transparent;
+}
+
+.overtype-caret {
+    position: absolute;
+    background: currentColor;
+    opacity: 0.35;
+    border-radius: 1px;
+    pointer-events: none;
+}
+
 /* ---- Setup window ---- */
 .setup-container {
     display: flex;

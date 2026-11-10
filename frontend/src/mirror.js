@@ -20,6 +20,7 @@
 // still open — so the edit carries on from what the rows hold now.
 
 import { applySteps, stepForKey } from "./steps.js";
+import { isOvertyping } from "./overtype.js";
 
 export function createMultiRowEditor(table, field = "name") {
     let session = null;
@@ -139,7 +140,9 @@ export function createMultiRowEditor(table, field = "name") {
         const input = editedInput();
         if (!input || e.target !== input) return;
 
-        const step = stepForKey(e, input);
+        // Overtyping replaces the character at the caret in this row, so the
+        // steps carry the mode and the other rows replace their own.
+        const step = stepForKey(e, input, isOvertyping());
         if (!step) return;
 
         // The caret the edit started at is only final once the first key is
