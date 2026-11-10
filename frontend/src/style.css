@@ -2,6 +2,7 @@
 :root {
     --bg:          #ffffff;
     --fg:          #212121;
+    --fg-disabled: #a0a0a0;
     --toolbar-bg:  #f5f5f5;
     --border:      #e0e0e0;
     --grid-bg:     #ffffff;
@@ -13,6 +14,7 @@
 body.dark {
     --bg:          #2b2b2b;
     --fg:          #f0f0f0;
+    --fg-disabled: #848484;
     --toolbar-bg:  #3c3c3c;
     --border:      #555555;
     --grid-bg:     #3c3c3c;
@@ -39,6 +41,12 @@ body {
     background: var(--toolbar-bg);
     padding: 4px 8px;
     border-bottom: 1px solid var(--border);
+    /* The tips that hang below the icons (see "Show Text") are painted inside the
+       toolbar, which the grid follows in the page: without this they would come
+       out underneath it. The grid's header cells carry z-index 11 of their own,
+       so this has to be above that. */
+    position: relative;
+    z-index: 20;
 }
 
 .toolbar-left,
@@ -57,6 +65,8 @@ body {
     cursor: pointer;
     padding: 4px 8px;
     border-radius: 4px;
+    /* A word turned into a tip is placed against its own button. */
+    position: relative;
 }
 
 #toolbar button:hover {
@@ -64,9 +74,11 @@ body {
 }
 
 /* A button that has nothing to do (no changes to save, no rows to record
-   against, no macro to play) is disabled and must not light up on hover. */
+   against, no macro to play) is drawn greyed out. It is dimmed by colour rather
+   than by opacity: the tip is a child of its button, and a see-through button
+   would wash the word out with the icon. */
 #toolbar button:disabled {
-    opacity: 0.4;
+    color: var(--fg-disabled);
     cursor: default;
 }
 
@@ -97,10 +109,48 @@ body {
 }
 
 /* "Show Text" is on by default: the word sits beside the icon. Unticked,
-   preferences.js sets data-toolbar-text="false" on <body> and only the icons are
-   left. The Record button's label is a span like these, so it hides with them. */
+   preferences.js sets data-toolbar-text="false" on <body> and the word becomes a
+   tip under the icon instead, so a button is never left as a picture with nothing
+   to say: resting on it — or tabbing to it — brings the word up, and it goes as
+   the pointer leaves. The word is the same span either way, so the Record button's
+   tip reads "Stop" while a recording is running without anything here knowing.
+
+   A tip is shown from :hover, which is a style and not an event: a disabled button
+   takes no mouse events, and most of the toolbar is disabled most of the time. */
 body[data-toolbar-text="false"] #toolbar .btn-label {
-    display: none;
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 3px 7px;
+    border-radius: 4px;
+    background: var(--fg);
+    color: var(--bg);
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 25%);
+    /* It hangs over the grid, so it must not take the click it is explaining. */
+    pointer-events: none;
+    opacity: 0;
+    /* Out of the way at once when the pointer leaves... */
+    transition: opacity 60ms linear;
+}
+
+/* ...and back after a moment's rest, the way a tooltip arrives, so running along
+   the toolbar does not raise every tip on the way. */
+body[data-toolbar-text="false"] #toolbar button:hover .btn-label,
+body[data-toolbar-text="false"] #toolbar button:focus-visible .btn-label {
+    opacity: 1;
+    transition: opacity 60ms linear 400ms;
+}
+
+/* The Setup button sits against the window edge: its tip lines up with that edge
+   rather than the middle of the button, which would hang it out of the window. */
+body[data-toolbar-text="false"] #toolbar .toolbar-right .btn-label {
+    left: auto;
+    right: 0;
+    transform: none;
 }
 
 /* ---- Grid fills the rest of the window ---- */

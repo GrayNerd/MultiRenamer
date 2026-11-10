@@ -7,12 +7,18 @@
 </head>
 <body>
     <div id="toolbar">
-        <button id="btn-save" disabled>Save</button>
-        <button id="btn-undo" disabled>Undo</button>
-        <button id="btn-record" aria-pressed="false" disabled><span class="btn-label">Record</span></button>
-        <button id="btn-play" disabled>Play</button>
-        <button id="btn-playall" disabled>Play All</button>
-        <button id="btn-clean" disabled>Clean</button>
+        <div class="toolbar-left">
+            <button id="btn-load"><span class="btn-label">Load</span></button>
+            <button id="btn-save" disabled><span class="btn-label">Save</span></button>
+            <button id="btn-undo" disabled><span class="btn-label">Undo</span></button>
+            <button id="btn-record" aria-pressed="false" disabled><span class="btn-label">Record</span></button>
+            <button id="btn-play" disabled><span class="btn-label">Play</span></button>
+            <button id="btn-playall" disabled><span class="btn-label">Play All</span></button>
+            <button id="btn-clean" disabled><span class="btn-label">Clean</span></button>
+        </div>
+        <div class="toolbar-right">
+            <button id="btn-setup"><span class="btn-label">Setup</span></button>
+        </div>
     </div>
     <div id="grid" style="height: 420px"></div>
     <pre id="out">running</pre>

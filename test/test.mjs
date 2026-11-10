@@ -213,7 +213,11 @@ async function rest() {
 
     buttons.record.click();
     await tick();
-    check("recording: button switched to Stop", buttons.record.getAttribute("aria-pressed") === "true");
+    // The bar's word is what a tip shows, so it must be the new one.
+    check("recording: button switched to Stop",
+        buttons.record.getAttribute("aria-pressed") === "true"
+        && buttons.record.querySelector(".btn-label").textContent === "Stop",
+        `${buttons.record.getAttribute("aria-pressed")}/${buttons.record.querySelector(".btn-label").textContent}`);
     check("recording: Play disabled while recording", buttons.play.disabled && buttons.playAll.disabled);
 
     dispatchKey("Z");
@@ -1633,14 +1637,50 @@ async function preferencesSteps() {
 
     // ---- the toolbar text is an attribute the stylesheet reads ----------
     applyPreferences(table, prefs({toolbar_text: false}));
-    check("prefs: toolbar text off hides the labels",
-        body.dataset.toolbarText === "false" && getComputedStyle(label).display === "none",
-        body.dataset.toolbarText);
+
+    // Unticked, the word does not go away: it becomes a tip under the icon.
+    await tick(120);   // the fade to nothing takes a frame or two
+    const tipStyle = getComputedStyle(label);
+    check("prefs: toolbar text off turns each word into a tip",
+        body.dataset.toolbarText === "false"
+        && tipStyle.display !== "none"
+        && tipStyle.position === "absolute"
+        && tipStyle.opacity === "0",
+        `${body.dataset.toolbarText} ${tipStyle.display}/${tipStyle.position}/${tipStyle.opacity}`);
+
+    // An icon on its own would say nothing, so every button must carry a word.
+    const bare = [...document.querySelectorAll("#toolbar button")]
+        .filter((button) => !button.querySelector(".btn-label")?.textContent.trim());
+    check("prefs: every toolbar button has a word to show as its tip",
+        bare.length === 0, bare.map((button) => button.id).join(","));
+
+    const recordBox = document.querySelector("#btn-record").getBoundingClientRect();
+    const tipBox = label.getBoundingClientRect();
+    check("prefs: the tip hangs below its button", tipBox.top >= recordBox.bottom,
+        `${tipBox.top} below ${recordBox.bottom}`);
+
+    check("prefs: a tip does not swallow the click it explains",
+        tipStyle.pointerEvents === "none", tipStyle.pointerEvents);
+
+    const setupTip = document.querySelector("#btn-setup .btn-label").getBoundingClientRect();
+    check("prefs: the edge button's tip stays inside the window",
+        setupTip.right <= window.innerWidth, `${setupTip.right} of ${window.innerWidth}`);
+
+    // It only comes up while the button is held. That is a :hover rule, which no
+    // synthetic event can set, so the rule itself is what is checked.
+    const hoverRule = [...document.styleSheets]
+        .flatMap((sheet) => [...sheet.cssRules])
+        .find((rule) => rule.selectorText?.includes("button:hover")
+            && rule.selectorText.includes("data-toolbar-text"));
+    check("prefs: the tip comes up on hover", hoverRule?.style.opacity === "1",
+        hoverRule?.selectorText ?? "no rule");
 
     applyPreferences(table, prefs({toolbar_text: true}));
-    check("prefs: toolbar text on shows them",
-        body.dataset.toolbarText === "true" && getComputedStyle(label).display !== "none",
-        body.dataset.toolbarText);
+    const backStyle = getComputedStyle(label);
+    check("prefs: toolbar text on puts the words back beside the icons",
+        body.dataset.toolbarText === "true" && backStyle.display !== "none"
+        && backStyle.position === "static" && backStyle.opacity === "1",
+        `${body.dataset.toolbarText} ${backStyle.display}/${backStyle.position}/${backStyle.opacity}`);
 
     // ---- a changed name is bold unless the option says otherwise --------
     table.replaceData([{

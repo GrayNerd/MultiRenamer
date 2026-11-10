@@ -188,7 +188,7 @@ if it is not there:
 | Option | Default | What it does |
 | --- | --- | --- |
 | Theme | Light | Light or dark window and grid |
-| Toolbar: Show Text | on | The word beside each toolbar icon; off leaves the icons alone |
+| Toolbar: Show Text | on | The word beside each toolbar icon; off leaves the icon, which shows its word as a tip when the pointer rests on it |
 | Bold changed file names | on | A name that differs from the one on disk is drawn bold |
 | Auto Sort Column | on | Every load is sorted by name; off keeps the folder's own order |
 | Save current window size/location on exit | off | Restores the window where it was left |
