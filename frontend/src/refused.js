@@ -9,6 +9,11 @@ export function markRefused(row) {
     const data = row.getData();
     const element = row.getElement();
 
+    // A row the virtual DOM has not laid out yet has no element; the row
+    // formatter will mark it when it is drawn. The save handler calls this on
+    // every row, so a missing element must not throw.
+    if (!element) return;
+
     element.classList.toggle("rename-failed", !!data.failed);
 
     if (data.failed) element.title = data.failed_reason || "this name could not be changed";

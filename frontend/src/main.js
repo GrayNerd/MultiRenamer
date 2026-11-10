@@ -148,7 +148,14 @@ saveBtn.addEventListener("click", async () => {
         toolbar.setSaving(false);
     }
 
-    if (saved && saved.length) table.replaceData(saved);
+    if (saved && saved.length) {
+        table.replaceData(saved);
+
+        // SaveRenames put back every refused name and flagged it; mark every one
+        // red, not just the rows that happen to be rendered in the virtual DOM
+        // viewport right now (rowFormatter only fires for those).
+        table.getRows().forEach(markRefused);
+    }
 });
 
 document.getElementById("btn-setup").addEventListener("click", () => {

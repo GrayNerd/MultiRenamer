@@ -352,6 +352,7 @@ async function highlights() {
     await multiRowEditSteps();
     await overtypeSteps();
     await editedMarkSteps();
+    await refusedMarkSteps();
     await extensionSteps();
     await hiddenSteps();
     if (historyModule) await undoSteps();
@@ -1442,6 +1443,42 @@ async function editedMarkSteps() {
     // ---- a load draws its rows unmarked ---------------------------------
     await load(["two-1.txt"]);
     check("edited: a fresh load is not bold", !marked(table.getRows("active")[0]));
+}
+
+// A refused save marks every refused row red, not just the ones currently
+// visible in the virtual DOM viewport.
+async function refusedMarkSteps() {
+    const rows = [];
+    for (let i = 0; i < 30; i += 1) {
+        rows.push({
+            name: `r${i}`, original_name: `r${i}`, extension: "txt", is_dir: false,
+            full_path: `/d/r${i}.txt`, date_created: "", date_modified: "", size: "1 KB",
+        });
+    }
+    // Refuse rows spread across the viewport so not all are rendered at once.
+    rows[1].failed = true;
+    rows[1].failed_reason = "this name could not be changed";
+    rows[10].failed = true;
+    rows[10].failed_reason = "this name could not be changed";
+    rows[25].failed = true;
+    rows[25].failed_reason = "this name could not be changed";
+
+    table.replaceData(rows);
+    await tick(120);
+
+    // This is what main.js does after SaveRenames returns: mark every row, so
+    // refused rows the virtual DOM has not rendered yet are still flagged.
+    table.getRows().forEach(markRefused);
+
+    const all = table.getRows();
+    const marked = all.filter((row) => row.getElement().classList.contains("rename-failed"));
+    const names = marked.map((row) => row.getData().name).join(",");
+    check("refused: every refused row is marked red, not just visible ones",
+        marked.length === 3 && names === "r1,r10,r25", `${marked.length} (${names})`);
+
+    const clean = all.filter((row) => !row.getData().failed);
+    check("refused: non-refused rows are not marked",
+        clean.every((row) => !row.getElement().classList.contains("rename-failed")));
 }
 
 
