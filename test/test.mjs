@@ -374,6 +374,7 @@ async function highlights() {
     await filterSteps();
     await cleanSteps();
     await hiddenSteps();
+    await setupWindowSteps();
     if (historyModule) await undoSteps();
     else info("undo checks skipped: src/history.js is not in this tree");
 
@@ -539,6 +540,22 @@ async function cleanSteps() {
 }
 
 // Ctrl/Cmd+H shows and hides the dotfiles; every load starts with them hidden.
+// The Setup window is a page of its own: it has to read at the size the grid does,
+// not at the browser's default, or the options look nothing like the grid they
+// change.
+async function setupWindowSteps() {
+    const probe = document.createElement("div");
+    probe.className = "setup-body";
+    document.body.append(probe);
+
+    const setupFont = getComputedStyle(probe).fontSize;
+    const gridFont = getComputedStyle(document.querySelector(".tabulator")).fontSize;
+    probe.remove();
+
+    check("setup: the window's font is the grid's", setupFont === gridFont,
+        `${setupFont} against ${gridFont}`);
+}
+
 async function hiddenSteps() {
     const rowsWithHidden = () => [
         {name: "doc", original_name: "doc", extension: "txt", is_dir: false, hidden: false, full_path: "/d/doc.txt", date_created: "", date_modified: "", size: "1 KB"},

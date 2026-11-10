@@ -40,6 +40,18 @@ type App struct {
 	// may close for real: hiding it would leave it as the last window standing,
 	// and the application only quits once its last window is gone.
 	mainClosing atomic.Bool
+
+	// setupForm is the form in the Setup window as it stands, and setupDirty says
+	// whether it differs from the options in force. Go keeps them so that closing
+	// the app can offer to save changes that were never saved.
+	setupMu    sync.Mutex
+	setupForm  Config
+	setupDirty bool
+
+	// quitting is set once the question about unsaved settings has been answered,
+	// so the main window's close goes through the second time instead of asking
+	// again.
+	quitting atomic.Bool
 }
 
 // currentConfig is the options in force right now.
@@ -434,29 +446,32 @@ const (
 
 // newSetupWindow builds the hidden setup window.
 //
-// It is a dialog, not a window of its own: no title bar, so there is nothing to
-// minimise, maximise or close it with; no resizing; and kept in front of the grid,
-// which is as close to modal as Wails gets. Anything that asks it to close — the
-// window manager's shortcut, Alt+F4 — is refused, so Cancel and Save are the only
-// ways out. The one exception is the app going with the main window: then it has
-// to close for real, or it would be the last window standing and the app would
-// never quit.
+// It is an ordinary window — its own title bar, with minimise, maximise and close
+// where they usually are — that opens in the middle of the grid. It is not kept on
+// top: the question it can raise about unsaved settings is a dialog of its own, and
+// a window that floats over everything would sit in front of it.
+//
+// Closing it is Cancel: the form goes back to the saved options the next time it
+// opens (the page reloads them, see setup.js), and the window is hidden rather than
+// destroyed, because Wails drops a closed window from its registry and cannot
+// revive it — the Setup button would be dead for the rest of the run. The exception
+// is the app going with the main window: then it has to close for real, or it would
+// be the last window standing and the app would never quit.
 func (a *App) newSetupWindow() *application.WebviewWindow {
 	w := a.app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name:          setupWindowName,
-		Title:         "Setup",
-		Width:         setupWindowWidth,
-		Height:        setupWindowHeight,
-		Hidden:        true,
-		URL:           "/setup.html",
-		Frameless:     true,
-		DisableResize: true,
-		AlwaysOnTop:   true,
+		Name:   setupWindowName,
+		Title:  "Setup",
+		Width:  setupWindowWidth,
+		Height: setupWindowHeight,
+		Hidden: true,
+		URL:    "/setup.html",
 	})
 	w.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
 		if a.mainClosing.Load() {
 			return
 		}
+		a.forgetSetupForm() // closed without saving: nothing left to offer
+		w.Hide()
 		e.Cancel()
 	})
 	return w
@@ -511,6 +526,10 @@ func (a *App) ShowSetup() {
 	a.setupWindow.Show()
 	a.centreSetup()
 	a.setupWindow.Focus()
+
+	// The form may have been left as it was when the window was last closed: tell
+	// the page to fill it in from the saved options again.
+	a.app.Event.Emit("setup-shown")
 }
 
 // centreSetup puts the dialog in the middle of the main window. A window manager
@@ -562,8 +581,80 @@ func (a *App) SaveConfig(cfg Config) error {
 // HideSetup puts the setup window away, the way its own close button does. Save
 // and Cancel both end there.
 func (a *App) HideSetup() {
+	a.forgetSetupForm() // saved or cancelled: nothing is pending
 	if a.setupWindow != nil {
 		a.setupWindow.Hide()
+	}
+}
+
+// SetSetupForm takes the Setup window's form as it stands. Go keeps it so that
+// closing the app can offer to save what was never saved: by then the window is on
+// its way out and cannot be asked what its form says.
+func (a *App) SetSetupForm(cfg Config) {
+	cfg.Theme = normaliseTheme(cfg.Theme)
+
+	a.setupMu.Lock()
+	defer a.setupMu.Unlock()
+
+	a.setupForm = cfg
+	a.setupDirty = cfg != a.currentConfig()
+}
+
+// setupIsDirty says whether the Setup window holds changes that were never saved.
+func (a *App) setupIsDirty() bool {
+	a.setupMu.Lock()
+	defer a.setupMu.Unlock()
+	return a.setupDirty
+}
+
+// pendingSetupForm is the form as the Setup window last reported it.
+func (a *App) pendingSetupForm() Config {
+	a.setupMu.Lock()
+	defer a.setupMu.Unlock()
+	return a.setupForm
+}
+
+// forgetSetupForm drops the reported form: the window was saved, cancelled or
+// closed, so there is nothing left to offer when the app quits.
+func (a *App) forgetSetupForm() {
+	a.setupMu.Lock()
+	defer a.setupMu.Unlock()
+
+	a.setupForm = Config{}
+	a.setupDirty = false
+}
+
+// askAboutUnsavedSetup asks what to do about the settings changed in the Setup
+// window that were never saved, before the app goes and takes them with it. Closing
+// the question decides nothing, so the app stays open.
+func (a *App) askAboutUnsavedSetup() {
+	dialog := a.app.Dialog.Question().
+		SetTitle("Unsaved settings").
+		SetMessage("The settings in the Setup window have been changed but not saved.")
+
+	dialog.AddButton("Save and Exit").SetAsDefault().OnClick(func() {
+		if err := a.SaveConfig(a.pendingSetupForm()); err != nil {
+			log.Printf("saving the settings on the way out: %v", err)
+			a.app.Dialog.Error().
+				SetTitle("Settings").
+				SetMessage(fmt.Sprintf("The settings could not be saved: %v", err)).
+				Show()
+			return // still open, so the changes are still there
+		}
+		a.quit()
+	})
+
+	dialog.AddButton("Exit Without Saving").OnClick(a.quit)
+
+	dialog.Show()
+}
+
+// quit closes the main window after the question has been answered, so the close
+// goes through this time instead of asking again.
+func (a *App) quit() {
+	a.quitting.Store(true)
+	if a.mainWindow != nil {
+		a.mainWindow.Close()
 	}
 }
 

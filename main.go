@@ -93,9 +93,16 @@ func main() {
 
 	// Closing the main window closes the app, setup window included: the app
 	// only quits once its last window is gone, and the setup window only hides
-	// when it is closed on its own. The size and place it is being closed at are
-	// written first, while the window still knows them.
+	// when it is closed on its own. Settings changed in the setup window and never
+	// saved are asked about first — they would go with the app — and the size and
+	// place the window is being closed at are written while it still knows them.
 	app.mainWindow.RegisterHook(events.Common.WindowClosing, func(event *application.WindowEvent) {
+		if !app.quitting.Load() && app.setupIsDirty() {
+			event.Cancel()
+			app.askAboutUnsavedSetup()
+			return
+		}
+
 		app.saveWindowState()
 		app.closeOtherWindows()
 	})

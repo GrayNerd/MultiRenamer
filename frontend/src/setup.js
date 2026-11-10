@@ -1,3 +1,4 @@
+import { Events } from "@wailsio/runtime";
 import * as App from "../bindings/multirenamer/app.js";
 
 // The controls of the Setup window.
@@ -31,6 +32,15 @@ const read = () => ({
     auto_sort: autoSort.checked,
     remember_window: rememberWindow.checked,
 });
+
+// Every change goes to Go as well, which keeps the form as it stands: closing the
+// application with settings that were never saved can then offer to save them,
+// even though the window may be on its way out by then and cannot be asked.
+const report = () => {
+    App.SetSetupForm(read()).catch((err) => console.error("SetSetupForm failed:", err));
+};
+
+document.querySelectorAll("input").forEach((input) => input.addEventListener("change", report));
 
 // Choosing a theme shows it straight away — this window and, once Save is
 // pressed, the grid. Cancel puts the saved theme back.
@@ -66,6 +76,17 @@ App.GetConfig()
         show(cfg);
     })
     .catch(err => console.error("GetConfig failed:", err));
+
+// Opened again: fill the form in from what is saved, so the changes left behind
+// when the window was last closed are not taken for new ones.
+Events.On("setup-shown", () => {
+    App.GetConfig()
+        .then((cfg) => {
+            saved = cfg;
+            show(cfg);
+        })
+        .catch(err => console.error("GetConfig failed:", err));
+});
 
 // The build this window belongs to, so it is obvious when an older one is still
 // open somewhere.

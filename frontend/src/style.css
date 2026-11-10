@@ -308,26 +308,13 @@ body.dark .tabulator .tabulator-row.rename-failed .tabulator-cell[tabulator-fiel
 }
 
 /* ---- Setup window ---- */
-/* The window has no frame of its own (app.go makes it frameless, so there is no
-   title bar with minimise, maximise and close on it): the strip below is the
-   title, and this border draws the window's edge. */
+/* The window has the usual frame and title bar, so the page draws no border and no
+   title of its own. Its font size is the grid's — Tabulator's 14px — rather than
+   the browser's 16px default, so the two read alike. */
 .setup-body {
     overflow: hidden;
     box-sizing: border-box;
-    border: 1px solid var(--border);
-}
-
-/* The title strip doubles as the handle the window is dragged by. Wails reads
-   --wails-draggable on whatever is under the pointer, and descendants inherit it,
-   so the whole strip drags. */
-.setup-title {
-    --wails-draggable: drag;
-    flex: 0 0 auto;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border);
-    background: var(--toolbar-bg);
-    font-weight: bold;
-    user-select: none;
+    font-size: 14px;
 }
 
 /* The window is a column: the options scroll if they have to, and the Cancel and

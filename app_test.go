@@ -29,6 +29,51 @@ func exists(t *testing.T, dir, name string) bool {
 	return err == nil
 }
 
+// The Setup window's form is what closing the app offers to save, so Go has to
+// know when it differs from the options in force.
+func TestSetupFormKnowsWhenThereAreUnsavedChanges(t *testing.T) {
+	app := &App{config: defaultConfig()}
+
+	// As the window opens: filled in from what is saved, so nothing to offer.
+	app.SetSetupForm(defaultConfig())
+	if app.setupIsDirty() {
+		t.Fatal("an untouched form was counted as unsaved changes")
+	}
+
+	// One option changed, and the form that would be saved is the one reported.
+	changed := defaultConfig()
+	changed.Theme = themeDark
+	app.SetSetupForm(changed)
+
+	if !app.setupIsDirty() {
+		t.Fatal("a changed form was not noticed")
+	}
+	if got := app.pendingSetupForm(); got != changed {
+		t.Fatalf("pending form: got %+v, want %+v", got, changed)
+	}
+
+	// Cancel, Save and the window's own close all drop it.
+	app.forgetSetupForm()
+	if app.setupIsDirty() {
+		t.Fatal("a forgotten form was still offered")
+	}
+
+	// Put back by hand: no unsaved changes either.
+	app.SetSetupForm(changed)
+	app.SetSetupForm(defaultConfig())
+	if app.setupIsDirty() {
+		t.Fatal("a form put back to the saved options was taken for a change")
+	}
+
+	// A theme the file cannot carry is the theme in force, so it is no change.
+	odd := defaultConfig()
+	odd.Theme = "Dark"
+	app.SetSetupForm(odd)
+	if app.setupIsDirty() {
+		t.Fatalf("an unreadable theme was counted as a change: %+v", app.pendingSetupForm())
+	}
+}
+
 func TestRenameRowsMovesEveryChangedName(t *testing.T) {
 	dir := t.TempDir()
 	rows := []FileInfo{row(t, dir, "a.txt", "one"), row(t, dir, "b.txt", "b")}

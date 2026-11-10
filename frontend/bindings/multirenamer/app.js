@@ -105,6 +105,17 @@ export function SaveRenames(rows) {
 }
 
 /**
+ * SetSetupForm takes the Setup window's form as it stands. Go keeps it so that
+ * closing the app can offer to save what was never saved: by then the window is on
+ * its way out and cannot be asked what its form says.
+ * @param {$models.Config} cfg
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetSetupForm(cfg) {
+    return $Call.ByID(4175010858, cfg);
+}
+
+/**
  * ShowMain shows the main window.
  * 
  * The window is made hidden, and this is called once the page has applied the

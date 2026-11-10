@@ -160,14 +160,16 @@ other platforms comes from the Wails template.
   red**, with the reason on hover, until its name is edited again — not just the
   ones currently visible in the grid. The other rows keep what was typed, so once
   the offending name is fixed the save can be made again.
-- The Setup window (top right) is a dialog rather than a window of its own: no title
-  bar to minimise, maximise or close it with, a fixed size, and it comes up in the
-  middle of the grid and stays in front of it. What title bar it has is the strip it
-  is dragged by. **Save** writes the options out and puts them into effect straight
-  away, **Cancel** leaves them as they were, and those two buttons are the only ways
-  out — a window manager's close is refused. It shows which build is running; the
-  same stamp is printed in the log at startup. Closing the main window closes it for
-  real, along with the rest of the app.
+- The Setup window (top right) is an ordinary window — its own title bar, with
+  minimise, maximise and close where they usually are — that opens in the middle of
+  the grid. **Save** writes the options out and puts them into effect straight away,
+  and **Cancel** leaves them as they were. Closing it is the same as Cancel: the
+  form goes back to the saved options the next time it opens. It shows which build is
+  running; the same stamp is printed in the log at startup.
+- Closing the main window closes the app, Setup window included. If the Setup window
+  holds changes that were never saved, a question comes first: **Save and Exit**
+  writes them and quits, **Exit Without Saving** quits and leaves the file as it was.
+  Dismissing the question decides nothing, so the app stays open.
 
 ## Configuration
 
