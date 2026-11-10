@@ -222,6 +222,7 @@ and place are in effect, so it is never seen in the light theme or in the wrong 
 | `frontend/src/edited.js` | the bold mark on a name that has been edited |
 | `frontend/src/clean.js` | the Clean button: dots and underscores back to spaces |
 | `frontend/src/preferences.js` | applies the saved options: theme, toolbar text, bold, sort |
+| `frontend/src/fit.js` | fits the grid's columns once the window is on screen |
 | `frontend/src/hidden.js` | the dotfile filter |
 | `frontend/src/toolbar.js` | what each toolbar button can do |
 | `frontend/setup.html`, `frontend/src/setup.js` | the Setup window and its Cancel/Save |

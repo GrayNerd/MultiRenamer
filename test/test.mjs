@@ -6,6 +6,7 @@ import { createMacroRecorder } from "/src/macro.js";
 import { preserveCaretAcrossCells } from "/src/caret.js";
 import { createHiddenFiles } from "/src/hidden.js";
 import { setupRowSelection } from "/src/rowselection.js";
+import { fitColumns } from "/src/fit.js";
 import { createMultiRowEditor } from "/src/mirror.js";
 import { applySteps } from "/src/steps.js";
 import { createOvertype } from "/src/overtype.js";
@@ -364,6 +365,7 @@ async function highlights() {
     await clipboardSteps();
     await homeEndSteps();
     await rowselectionSteps();
+    await fitSteps();
     await multiRowEditSteps();
     await overtypeSteps();
     await editedMarkSteps();
@@ -1052,6 +1054,23 @@ async function rowselectionSteps() {
         !taken && table.getSelectedRows().length === 0, `${taken} ${selectedNames().join()}`);
 }
 
+
+// The grid is built before the window is up, so fit.js asks for the columns to be
+// fitted again once there is a window to fill — on the next frame, not this one.
+async function fitSteps() {
+    const original = table.redraw;
+    let asked = null;
+
+    table.redraw = (force) => { asked = force; };
+    fitColumns(table);
+
+    check("fit: nothing is asked for in this frame", asked === null, String(asked));
+
+    await tick(80);
+    check("fit: the table is redrawn in full on the next frame", asked === true, String(asked));
+
+    table.redraw = original;
+}
 
 async function multiRowEditSteps() {
     // ---- editing one highlighted row edits the others -------------------

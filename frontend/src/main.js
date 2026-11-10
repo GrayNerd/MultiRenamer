@@ -7,6 +7,7 @@ import "tabulator-tables/dist/css/tabulator.min.css";
 import { TabulatorFull as Tabulator } from "tabulator-tables";
 import { preserveCaretAcrossCells } from "./caret.js";
 import { markEdited, setupEditedNames } from "./edited.js";
+import { fitColumns } from "./fit.js";
 import { createHiddenFiles } from "./hidden.js";
 import { createHistory } from "./history.js";
 import { createMacroRecorder } from "./macro.js";
@@ -211,7 +212,11 @@ Events.On("files-dropped", async (ev) => {
 App.GetConfig()
     .then((cfg) => applyPreferences(table, cfg))
     .catch((err) => console.error("GetConfig failed:", err))
-    .finally(() => App.ShowMain().catch((err) => console.error("ShowMain failed:", err)));
+    // The grid was built while the window was still hidden, so its columns were
+    // fitted to a width there was no window for: fit them again now there is one.
+    .finally(() => App.ShowMain()
+        .catch((err) => console.error("ShowMain failed:", err))
+        .finally(() => fitColumns(table)));
 
 Events.On("config-changed", (ev) => applyPreferences(table, ev.data));
 
