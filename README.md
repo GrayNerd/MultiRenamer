@@ -23,8 +23,8 @@ v3 window (Go backend) around a Tabulator grid.
 - **Undo.** The button or Ctrl/Cmd+Z, from anywhere. One edit is one step, a
   multi-row edit is one step per keystroke, and a macro press is one step per row it
   changed. Undo never closes an editor you are typing in.
-- **Filter and hide.** The Name header filter narrows the grid; dotfiles stay out of
-  the way until Ctrl/Cmd+H.
+- **Filter and hide.** Every column has a header filter: the name, the extension,
+  `dir`/`file`, or part of a date. Dotfiles stay out of the way until Ctrl/Cmd+H.
 - **Save is all or nothing.** Every name is checked before anything moves, and if a
   rename fails the ones already done are put back.
 
@@ -90,8 +90,9 @@ other platforms comes from the Wails template.
    One dropped folder stands for what is inside it; drop several folders and the
    folders themselves are listed, so they can be renamed. Dropped files are added as
    themselves.
-2. **Narrow the list** if it helps: type in the `Filter` box under Name. Save still
-   saves every row in the grid, not only the visible ones.
+2. **Narrow the list** if it helps: each column has its own `Filter` box — the name,
+   the extension, `dir`/`file`, or part of a date. Save still saves every row in the
+   grid, not only the visible ones.
 3. **Rename.** Click a row to select it, click it again to edit the name where the
    mouse is. Enter or Tab commits; Escape cancels and puts back any rows the edit had
    already reached.

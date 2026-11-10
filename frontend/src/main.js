@@ -20,6 +20,11 @@ import { createToolbarState } from "./toolbar.js";
 // What the entry is, in a word. Read-only, like the extension beside it.
 const typeText = (row) => (row.is_dir ? "dir" : "file");
 
+// The Type column filters on the word it shows ("dir"/"file"), not on the is_dir
+// flag behind it, so typing "dir" finds the folders.
+const typeFilter = (value, _rowValue, rowData) =>
+    typeText(rowData).toLowerCase().includes(String(value).toLowerCase());
+
 // The grid's Name column holds the name without its extension; that is the only
 // thing that is edited. The extension and the type sit beside it, read-only, and
 // the file is saved back with whatever extension it came with.
@@ -38,19 +43,25 @@ const table = new Tabulator("#grid", {
         markEdited(row);
     },
     columns: [
-        // The header filter narrows the list to the names it matches; the rows
-        // it hides stay in the grid (and are still saved) but are skipped by
-        // Record/Play/Play All, which only work on what is on screen.
+        // Each header filter narrows the list to the rows it matches — a name, an
+        // extension, "dir"/"file", or part of a date; the rows it hides stay in
+        // the grid (and are still saved) but are skipped by Record/Play/Play All,
+        // which only work on what is on screen.
         { title: "Name",          field: "name",          editor: "input", headerFilter: "input", headerFilterPlaceholder: "Filter", widthGrow: 1, resizable: true, headerSort: true },
         // The extension only: a directory, or a file without one, has nothing in
         // this column.
-        { title: "Ext",           field: "extension",     width: 90,      widthGrow: 0, resizable: false, headerSort: true },
-        // Read-only, and sorted by the word it shows rather than the flag.
+        { title: "Ext",           field: "extension",     width: 90,      widthGrow: 0, resizable: false, headerSort: true,
+          headerFilter: "input", headerFilterPlaceholder: "Filter" },
+        // Read-only, and sorted by the word it shows rather than the flag — and
+        // filtered by it too.
         { title: "Type",          field: "is_dir",        width: 90,      widthGrow: 0, resizable: false, headerSort: true,
           formatter: (cell) => typeText(cell.getRow().getData()),
-          sorter: (a, b, aRow, bRow) => typeText(aRow.getData()).localeCompare(typeText(bRow.getData())) },
-        { title: "Date Created",  field: "date_created",  width: 175,      widthGrow: 0, resizable: false, headerSort: true },
-        { title: "Date Modified", field: "date_modified", width: 175,      widthGrow: 0, resizable: false, headerSort: true },
+          sorter: (a, b, aRow, bRow) => typeText(aRow.getData()).localeCompare(typeText(bRow.getData())),
+          headerFilter: "input", headerFilterPlaceholder: "Filter", headerFilterFunc: typeFilter },
+        { title: "Date Created",  field: "date_created",  width: 175,      widthGrow: 0, resizable: false, headerSort: true,
+          headerFilter: "input", headerFilterPlaceholder: "Filter" },
+        { title: "Date Modified", field: "date_modified", width: 175,      widthGrow: 0, resizable: false, headerSort: true,
+          headerFilter: "input", headerFilterPlaceholder: "Filter" },
         { title: "Size",          field: "size",          width: 100,      widthGrow: 0, resizable: false, headerSort: true },
         { field: "original_name", visible: false },
         { field: "full_path", visible: false },

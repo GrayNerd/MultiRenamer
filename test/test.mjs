@@ -45,12 +45,18 @@ const table = new Tabulator("#grid", {
     placeholder: "No files loaded",
     columns: [
         { title: "Name", field: "name", editor: "input", headerFilter: "input", headerFilterPlaceholder: "Filter", widthGrow: 1, resizable: true, headerSort: true },
-        { title: "Ext", field: "extension", width: 90, widthGrow: 0, resizable: false, headerSort: true },
+        { title: "Ext", field: "extension", width: 90, widthGrow: 0, resizable: false, headerSort: true,
+          headerFilter: "input", headerFilterPlaceholder: "Filter" },
         { title: "Type", field: "is_dir", width: 90, widthGrow: 0, resizable: false, headerSort: true,
           formatter: (cell) => typeLabel(cell.getRow().getData()),
-          sorter: (a, b, aRow, bRow) => typeLabel(aRow.getData()).localeCompare(typeLabel(bRow.getData())) },
-        { title: "Date Created", field: "date_created", width: 175, widthGrow: 0, resizable: false, headerSort: true },
-        { title: "Date Modified", field: "date_modified", width: 175, widthGrow: 0, resizable: false, headerSort: true },
+          sorter: (a, b, aRow, bRow) => typeLabel(aRow.getData()).localeCompare(typeLabel(bRow.getData())),
+          headerFilter: "input", headerFilterPlaceholder: "Filter",
+          headerFilterFunc: (value, _rowValue, rowData) =>
+              typeLabel(rowData).toLowerCase().includes(String(value).toLowerCase()) },
+        { title: "Date Created", field: "date_created", width: 175, widthGrow: 0, resizable: false, headerSort: true,
+          headerFilter: "input", headerFilterPlaceholder: "Filter" },
+        { title: "Date Modified", field: "date_modified", width: 175, widthGrow: 0, resizable: false, headerSort: true,
+          headerFilter: "input", headerFilterPlaceholder: "Filter" },
         { title: "Size", field: "size", width: 100, widthGrow: 0, resizable: false, headerSort: true },
         { field: "original_name", visible: false },
         { field: "full_path", visible: false },
@@ -355,6 +361,7 @@ async function highlights() {
     await editedMarkSteps();
     await refusedMarkSteps();
     await extensionSteps();
+    await filterSteps();
     await hiddenSteps();
     if (historyModule) await undoSteps();
     else info("undo checks skipped: src/history.js is not in this tree");
@@ -403,6 +410,67 @@ async function extensionSteps() {
 
     table.clearSort();
     await tick(60);
+}
+
+// The read-only columns can be narrowed by their own header filters, the Type
+// column by the word it shows.
+async function filterSteps() {
+    table.replaceData([
+        {name: "alpha", original_name: "alpha", extension: "txt", is_dir: false, full_path: "/d/alpha.txt",
+         date_created: "2026-01-05 10:00", date_modified: "2026-03-01 09:00", size: "1 KB"},
+        {name: "beta", original_name: "beta", extension: "gz", is_dir: false, full_path: "/d/beta.gz",
+         date_created: "2026-02-10 10:00", date_modified: "2026-01-15 09:00", size: "2 KB"},
+        {name: "gamma", original_name: "gamma", extension: "txt", is_dir: true, full_path: "/d/gamma",
+         date_created: "2026-02-20 10:00", date_modified: "2026-02-01 09:00", size: "1 KB"},
+        {name: "delta", original_name: "delta", extension: "md", is_dir: false, full_path: "/d/delta.md",
+         date_created: "2026-03-01 10:00", date_modified: "2026-02-20 09:00", size: "3 KB"},
+    ]);
+    hiddenFiles.reset();
+    await tick(120);
+
+    const names = () => table.getRows("active").map((row) => row.getData().name).join(",");
+    const filterBy = async (field, value) => {
+        table.setHeaderFilterValue(field, value);
+        await tick(120);
+    };
+
+    check("filter: every row on screen to begin with", names() === "alpha,beta,gamma,delta", names());
+
+    // ---- the extension ------------------------------------------------
+    await filterBy("extension", "txt");
+    check("filter: the Ext filter matches the extension", names() === "alpha,gamma", names());
+
+    await filterBy("extension", "");
+
+    // ---- the type, filtered by the word on screen ----------------------
+    await filterBy("is_dir", "dir");
+    check("filter: typing dir finds the folders", names() === "gamma", names());
+
+    await filterBy("is_dir", "file");
+    check("filter: typing file finds the files", names() === "alpha,beta,delta", names());
+
+    await filterBy("is_dir", "");
+
+    // ---- the dates, by any part of what is shown ----------------------
+    await filterBy("date_created", "2026-02");
+    check("filter: the created date filter matches a month", names() === "beta,gamma", names());
+
+    await filterBy("date_created", "");
+    await filterBy("date_modified", "2026-02");
+    check("filter: the modified date filter matches a month", names() === "gamma,delta", names());
+
+    await filterBy("date_modified", "");
+    check("filter: clearing them brings every row back", names() === "alpha,beta,gamma,delta", names());
+
+    // ---- sorting still works over what is left ------------------------
+    await filterBy("extension", "txt");
+    table.setSort("date_created", "desc");
+    await tick(120);
+    check("filter: sorting still applies to the filtered rows", names() === "gamma,alpha", names());
+
+    await filterBy("extension", "");
+    table.clearSort();
+    await tick(120);
 }
 
 // Ctrl/Cmd+H shows and hides the dotfiles; every load starts with them hidden.
