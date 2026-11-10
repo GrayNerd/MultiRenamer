@@ -33,9 +33,11 @@ export function createToolbarState(table, controls) {
     };
 
     // cellEdited covers typing and the macro replay, dataProcessed a Load, a
-    // drop or the grid reload after a save.
+    // drop or the grid reload after a save, and dataChanged anything else that
+    // rewrites a row's data — Clean, or an undo.
     table.on("dataProcessed", () => refresh());
     table.on("cellEdited", () => refresh());
+    table.on("dataChanged", () => refresh());
 
     // Tabulator reports a filter change *while* it is still working out which
     // rows survive it, so the table would still answer with the previous set.

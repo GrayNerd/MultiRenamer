@@ -12,6 +12,7 @@ import { createOvertype } from "/src/overtype.js";
 import { forgetRefused, markRefused } from "/src/refused.js";
 import { markEdited, setupEditedNames } from "/src/edited.js";
 import { applyPreferences, setupPreferences } from "/src/preferences.js";
+import { cleanName, createCleanNames } from "/src/clean.js";
 
 // The undo stack lives in its own module, which older trees do not have; the rest
 // of the suite runs either way and the undo checks report that they were skipped.
@@ -105,6 +106,9 @@ createMacroRecorder(table, buttons, "name", (state) => {
     toolbar.setMacro(state);
     history.setBlocked(state.recording);
 }, history);
+
+// Clean, wired last as in main.js.
+createCleanNames(table, document.getElementById("btn-clean"), "name", historyModule ? history : null);
 
 const active = () => table.getRows("active").length;
 const load = async (list, filter = "") => {
@@ -362,6 +366,7 @@ async function highlights() {
     await refusedMarkSteps();
     await extensionSteps();
     await filterSteps();
+    await cleanSteps();
     await hiddenSteps();
     if (historyModule) await undoSteps();
     else info("undo checks skipped: src/history.js is not in this tree");
@@ -471,6 +476,60 @@ async function filterSteps() {
     await filterBy("extension", "");
     table.clearSort();
     await tick(120);
+}
+
+// Clean turns the dots and underscores a name was built with back into spaces.
+async function cleanSteps() {
+    check("clean: dots and underscores become spaces",
+        cleanName("my_report.final") === "my report final", cleanName("my_report.final"));
+    check("clean: a decimal point is kept",
+        cleanName("plate_25.4mm") === "plate 25.4mm", cleanName("plate_25.4mm"));
+    check("clean: a leading dot stays, so the file stays hidden",
+        cleanName(".hidden_file") === ".hidden file", cleanName(".hidden_file"));
+    check("clean: runs of separators become one space",
+        cleanName("a__b..c") === "a b c", cleanName("a__b..c"));
+    check("clean: the ends are trimmed", cleanName("_name_") === "name", cleanName("_name_"));
+    check("clean: a name with nothing to clean is left alone",
+        cleanName("plain name") === "plain name", cleanName("plain name"));
+
+    const cleanBtn = document.getElementById("btn-clean");
+
+    // ---- nothing to clean until a row is picked ------------------------
+    await load(["one_row.two", "three_row", "four.five"]);
+    check("clean: the button is disabled with nothing selected", cleanBtn.disabled);
+
+    const rows = table.getRows("active");
+    await clickCell(rows[1]);
+    check("clean: and enabled once a row is selected", !cleanBtn.disabled);
+
+    cleanBtn.click();
+    await tick(80);
+    check("clean: the selected row is cleaned, the others are not",
+        editedNames().join(",") === "one_row.two,three row,four.five", editedNames().join(","));
+    check("clean: the change counts as unsaved work", !buttons.save.disabled);
+
+    // ---- every highlighted row is cleaned ------------------------------
+    await load(["a_b", "c_d", "e_f", "g_h"]);
+    const four = table.getRows("active");
+    await clickCell(four[0]);
+    await clickCell(four[2], "name", {shift: true});
+
+    cleanBtn.click();
+    await tick(80);
+    check("clean: every highlighted row is cleaned",
+        editedNames().join(",") === "a b,c d,e f,g_h", editedNames().join(","));
+
+    // ---- undo puts them back, one row per press ------------------------
+    if (historyModule) {
+        for (let i = 0; i < 3; i += 1) {
+            undoBtn.click();
+            await tick(60);
+        }
+        check("clean: undo puts every name back",
+            editedNames().join(",") === "a_b,c_d,e_f,g_h", editedNames().join(","));
+    } else {
+        info("clean: undo check skipped: src/history.js is not in this tree");
+    }
 }
 
 // Ctrl/Cmd+H shows and hides the dotfiles; every load starts with them hidden.

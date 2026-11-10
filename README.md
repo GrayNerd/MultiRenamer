@@ -20,6 +20,10 @@ v3 window (Go backend) around a Tabulator grid.
   into all of them. Cut, copy and paste act on each row's own characters.
 - **Macros.** Record the keys that rename one row, then Play them into a single row
   or Play All into every row on screen (or just the highlighted ones).
+- **Clean up separators.** `Clean` turns the dots and underscores a name was built
+  with back into spaces — on the selected row, or on every highlighted row. A dot
+  between two digits is left alone so a decimal (`plate_25.4mm`) survives, and a
+  leading dot stays so a dotfile stays hidden.
 - **Undo.** The button or Ctrl/Cmd+Z, from anywhere. One edit is one step, a
   multi-row edit is one step per keystroke, and a macro press is one step per row it
   changed. Undo never closes an editor you are typing in.
@@ -100,13 +104,17 @@ other platforms comes from the Wails template.
    ctrl/cmd-click, then type into one of them: every highlighted row gets the same
    edit, keystroke by keystroke. While editing, up and down commit and move the edit
    to the row above or below, taking the highlight with it.
-5. **Repeat a rename.** `Record`, make the edit in a row, then `Record` again to stop.
+5. **Clean separators.** Select a row, or highlight several, and press `Clean`:
+   `my_report.final` becomes `my report final`. A dot between two digits is kept, so
+   `plate_25.4mm` becomes `plate 25.4mm`, and a leading dot stays, so a dotfile stays
+   hidden. `Undo` takes it back a row at a time.
+6. **Repeat a rename.** `Record`, make the edit in a row, then `Record` again to stop.
    `Play` repeats it on one row; `Play All` on every row on screen, or only on the
    highlighted rows if any are highlighted.
-6. **Undo.** `Undo` or Ctrl/Cmd+Z, from the grid or from inside an edit. One press
+7. **Undo.** `Undo` or Ctrl/Cmd+Z, from the grid or from inside an edit. One press
    takes one edit back; in a multi-row edit one press takes a keystroke off every row
    and leaves the editor open, so the next key carries on editing.
-7. **Save.** Every row whose name changed is renamed on disk.
+8. **Save.** Every row whose name changed is renamed on disk.
 
 ## Keyboard
 
@@ -208,6 +216,7 @@ Whatever is in the files is read when the program starts, so a hand-edited
 | `frontend/src/caret.js` | keeps the caret offset when the edit moves between cells |
 | `frontend/src/overtype.js` | insert vs overtype, and the caret that shows which is on |
 | `frontend/src/edited.js` | the bold mark on a name that has been edited |
+| `frontend/src/clean.js` | the Clean button: dots and underscores back to spaces |
 | `frontend/src/preferences.js` | applies the saved options: theme, toolbar text, bold, sort |
 | `frontend/src/hidden.js` | the dotfile filter |
 | `frontend/src/toolbar.js` | what each toolbar button can do |

@@ -13,6 +13,7 @@ import { createMacroRecorder } from "./macro.js";
 import { createMultiRowEditor } from "./mirror.js";
 import { createOvertype } from "./overtype.js";
 import { applyPreferences, setupPreferences } from "./preferences.js";
+import { createCleanNames } from "./clean.js";
 import { forgetRefused, markRefused } from "./refused.js";
 import { setupRowSelection } from "./rowselection.js";
 import { createToolbarState } from "./toolbar.js";
@@ -226,3 +227,8 @@ createMacroRecorder(table, {
     // underneath the keystrokes being captured.
     history.setBlocked(state.recording);
 }, history);
+
+// --------------------------------------------------
+// Clean — the dots and underscores a name was built with become spaces
+// --------------------------------------------------
+createCleanNames(table, document.getElementById("btn-clean"), "name", history);
