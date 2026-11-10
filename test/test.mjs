@@ -11,6 +11,7 @@ import { applySteps } from "/src/steps.js";
 import { createOvertype } from "/src/overtype.js";
 import { forgetRefused, markRefused } from "/src/refused.js";
 import { markEdited, setupEditedNames } from "/src/edited.js";
+import { applyPreferences, setupPreferences } from "/src/preferences.js";
 
 // The undo stack lives in its own module, which older trees do not have; the rest
 // of the suite runs either way and the undo checks report that they were skipped.
@@ -357,6 +358,9 @@ async function highlights() {
     await hiddenSteps();
     if (historyModule) await undoSteps();
     else info("undo checks skipped: src/history.js is not in this tree");
+
+    // Last: it turns auto-sort on, which reorders every later load.
+    await preferencesSteps();
 }
 
 // The extension and type columns: the same formatter/sorter main.js uses.
@@ -1479,6 +1483,71 @@ async function refusedMarkSteps() {
     const clean = all.filter((row) => !row.getData().failed);
     check("refused: non-refused rows are not marked",
         clean.every((row) => !row.getElement().classList.contains("rename-failed")));
+}
+
+// The options the Setup window saves, as the grid applies them.
+async function preferencesSteps() {
+    const body = document.body;
+    const label = document.querySelector("#btn-record .btn-label");
+    const weightOf = (row) => getComputedStyle(row.getCell("name").getElement()).fontWeight;
+
+    setupPreferences(table);
+
+    const prefs = (over) => ({
+        theme: "light", toolbar_text: true, bold_changed: true, auto_sort: false, ...over,
+    });
+
+    // ---- the theme is a class on the body -------------------------------
+    applyPreferences(table, prefs({theme: "dark"}));
+    check("prefs: the dark theme is a class on the body", body.classList.contains("dark"));
+
+    applyPreferences(table, prefs({theme: "light"}));
+    check("prefs: the light theme takes it away", !body.classList.contains("dark"));
+
+    // ---- the toolbar text is an attribute the stylesheet reads ----------
+    applyPreferences(table, prefs({toolbar_text: false}));
+    check("prefs: toolbar text off hides the labels",
+        body.dataset.toolbarText === "false" && getComputedStyle(label).display === "none",
+        body.dataset.toolbarText);
+
+    applyPreferences(table, prefs({toolbar_text: true}));
+    check("prefs: toolbar text on shows them",
+        body.dataset.toolbarText === "true" && getComputedStyle(label).display !== "none",
+        body.dataset.toolbarText);
+
+    // ---- a changed name is bold unless the option says otherwise --------
+    table.replaceData([{
+        name: "changed", original_name: "original", extension: "txt", is_dir: false,
+        full_path: "/d/changed.txt", date_created: "", date_modified: "", size: "1 KB",
+    }]);
+    await tick(120);
+
+    const row = table.getRows("active")[0];
+    applyPreferences(table, prefs({bold_changed: true}));
+    check("prefs: a changed name is bold", weightOf(row) === "700", weightOf(row));
+
+    applyPreferences(table, prefs({bold_changed: false}));
+    check("prefs: bold off returns the normal weight",
+        body.classList.contains("no-bold-changed") && weightOf(row) === "400", weightOf(row));
+
+    applyPreferences(table, prefs({bold_changed: true}));
+
+    // ---- auto sort reorders each load, and only then ---------------------
+    // getData() answers in insertion order; the rows on screen are the sorted
+    // ones, so the order is read from getRows("active").
+    const order = () => table.getRows("active").map((r) => r.getData().name).join(",");
+
+    applyPreferences(table, prefs({auto_sort: true}));
+    table.replaceData(["c-1", "a-1", "b-1"].map(mkRow));
+    await tick(120);
+    check("prefs: a load is sorted by name when auto sort is on",
+        order() === "a-1,b-1,c-1", order());
+
+    applyPreferences(table, prefs({auto_sort: false}));
+    table.replaceData(["c-2", "a-2", "b-2"].map(mkRow));
+    await tick(120);
+    check("prefs: with auto sort off the order is kept",
+        order() === "c-2,a-2,b-2", order());
 }
 
 

@@ -149,10 +149,43 @@ other platforms comes from the Wails template.
   red**, with the reason on hover, until its name is edited again — not just the
   ones currently visible in the grid. The other rows keep what was typed, so once
   the offending name is fixed the save can be made again.
-- The Setup window (top right) toggles dark mode and shows which build is running;
-  the same stamp is printed in the log at startup. Closed on its own it only hides,
-  so the button brings it back; closing the main window closes it for real, along
-  with the rest of the app.
+- The Setup window (top right) holds the options below and shows which build is
+  running; the same stamp is printed in the log at startup. **Save** writes them out
+  and puts them into effect straight away; **Cancel** leaves them as they were.
+  Closed on its own the window only hides, so the button brings it back; closing the
+  main window closes it for real, along with the rest of the app.
+
+## Configuration
+
+The Setup window saves to two files in the application's own directory:
+
+| Platform | Directory |
+| --- | --- |
+| Linux | `~/.config/MultiRenamer/` |
+| macOS | `~/Library/Preferences/MultiRenamer/` |
+| Windows | `C:\ProgramData\MultiRenamer\` |
+
+`config.json` holds the options, and is written with the defaults on the first run
+if it is not there:
+
+```json
+{ "theme": "light", "toolbar_text": true, "bold_changed": true,
+  "auto_sort": true, "remember_window": false }
+```
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| Theme | Light | Light or dark window and grid |
+| Toolbar: Show Text | on | The word beside each toolbar icon; off leaves the icons alone |
+| Bold changed file names | on | A name that differs from the one on disk is drawn bold |
+| Auto Sort Column | on | Every load is sorted by name; off keeps the folder's own order |
+| Save current window size/location on exit | off | Restores the window where it was left |
+
+`window.json` sits beside it and is written when the program exits, but only while
+that last option is on; it holds the main window's width, height and position.
+
+Whatever is in the files is read when the program starts, so a hand-edited
+`config.json` is honoured. A missing or unreadable file falls back to the defaults.
 
 ## Project layout
 
@@ -160,6 +193,7 @@ other platforms comes from the Wails template.
 | --- | --- |
 | `main.go` | the window, file drop, and the embedded frontend |
 | `app.go` | loading, renaming, the dialogs, the build stamp |
+| `config.go` | the saved options and window geometry, and where they live |
 | `frontend/index.html` | toolbar and grid markup |
 | `frontend/src/main.js` | grid setup, toolbar wiring, load and save |
 | `frontend/src/mirror.js` | multi-row editing: one edit, every highlighted row |
@@ -170,9 +204,10 @@ other platforms comes from the Wails template.
 | `frontend/src/caret.js` | keeps the caret offset when the edit moves between cells |
 | `frontend/src/overtype.js` | insert vs overtype, and the caret that shows which is on |
 | `frontend/src/edited.js` | the bold mark on a name that has been edited |
+| `frontend/src/preferences.js` | applies the saved options: theme, toolbar text, bold, sort |
 | `frontend/src/hidden.js` | the dotfile filter |
 | `frontend/src/toolbar.js` | what each toolbar button can do |
-| `frontend/setup.html`, `frontend/src/setup.js` | the Setup window |
+| `frontend/setup.html`, `frontend/src/setup.js` | the Setup window and its Cancel/Save |
 | `frontend/src/style.css` | theme and grid overrides |
 
 ## Checks

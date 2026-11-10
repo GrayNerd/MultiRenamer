@@ -3,9 +3,11 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -19,10 +21,23 @@ type App struct {
 	mainWindow  *application.WebviewWindow
 	setupWindow *application.WebviewWindow
 
+	// config is what the Setup window saved and the grid is using. The mutex
+	// keeps the reads (a window drawing itself, the geometry being saved on the
+	// way out) away from a save that is writing it.
+	configMu sync.RWMutex
+	config   Config
+
 	// mainClosing is set as the main window closes. From then on the setup window
 	// may close for real: hiding it would leave it as the last window standing,
 	// and the application only quits once its last window is gone.
 	mainClosing atomic.Bool
+}
+
+// currentConfig is the options in force right now.
+func (a *App) currentConfig() Config {
+	a.configMu.RLock()
+	defer a.configMu.RUnlock()
+	return a.config
 }
 
 type FileInfo struct {
@@ -414,8 +429,8 @@ func (a *App) newSetupWindow() *application.WebviewWindow {
 	w := a.app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:   setupWindowName,
 		Title:  "Setup",
-		Width:  400,
-		Height: 300,
+		Width:  460,
+		Height: 560,
 		Hidden: true,
 		URL:    "/setup.html",
 	})
@@ -440,16 +455,65 @@ func (a *App) ShowSetup() {
 	a.setupWindow.Focus()
 }
 
-// SetTheme switches the frontend CSS between light and dark mode.
-// Native title‑bar theming is platform‑specific in v3; CSS is the reliable cross‑platform approach.
-func (a *App) SetTheme(dark bool) {
-	// ✅ App.SetTheme does not exist in v3.  Emit the event so the frontend can toggle CSS.
-	a.app.Event.Emit("theme-changed", dark)
+// GetConfig is the options in force: what the Setup window fills itself in from,
+// and what the grid applies when it starts.
+func (a *App) GetConfig() Config {
+	return a.currentConfig()
+}
 
-	// OPTIONAL: On Windows you can also set the native title‑bar theme:
-	// if dark {
-	//     runtime.WindowSetDarkTheme(a.ctx)
-	// } else {
-	//     runtime.WindowSetLightTheme(a.ctx)
-	// }
+// SaveConfig keeps the options the Setup window handed over: it writes them to
+// the configuration file, holds them for the rest of the run, and tells the open
+// windows so they change without a restart.
+func (a *App) SaveConfig(cfg Config) error {
+	cfg.Theme = normaliseTheme(cfg.Theme)
+
+	dir, err := configDir()
+	if err != nil {
+		return err
+	}
+	if err := saveConfig(dir, cfg); err != nil {
+		return err
+	}
+
+	a.configMu.Lock()
+	a.config = cfg
+	a.configMu.Unlock()
+
+	if a.app != nil {
+		a.app.Event.Emit("config-changed", cfg)
+	}
+	return nil
+}
+
+// HideSetup puts the setup window away, the way its own close button does. Save
+// and Cancel both end there.
+func (a *App) HideSetup() {
+	if a.setupWindow != nil {
+		a.setupWindow.Hide()
+	}
+}
+
+// saveWindowState writes the size and place the main window was left at, when the
+// user asked for them to be remembered. It runs as the window closes, while it
+// still knows where it is.
+func (a *App) saveWindowState() {
+	if !a.currentConfig().RememberWindow || a.mainWindow == nil {
+		return
+	}
+
+	dir, err := configDir()
+	if err != nil {
+		log.Printf("saving the window state: %v", err)
+		return
+	}
+
+	width, height := a.mainWindow.Size()
+	x, y := a.mainWindow.Position()
+	if width <= 0 || height <= 0 {
+		return
+	}
+
+	if err := saveWindowState(dir, WindowState{Width: width, Height: height, X: x, Y: y}); err != nil {
+		log.Printf("saving the window state: %v", err)
+	}
 }

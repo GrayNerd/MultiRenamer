@@ -6,6 +6,71 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+/**
+ * Config is everything the Setup window saves, and what the program reads back
+ * when it starts.
+ */
+export class Config {
+    /**
+     * Creates a new Config instance.
+     * @param {Partial<Config>} [$$source = {}] - The source object to create the Config.
+     */
+    constructor($$source = {}) {
+        if (!("theme" in $$source)) {
+            /**
+             * "light" (the default) or "dark"
+             * @member
+             * @type {string}
+             */
+            this["theme"] = "";
+        }
+        if (!("toolbar_text" in $$source)) {
+            /**
+             * the toolbar buttons show their text
+             * @member
+             * @type {boolean}
+             */
+            this["toolbar_text"] = false;
+        }
+        if (!("bold_changed" in $$source)) {
+            /**
+             * a changed name is drawn bold
+             * @member
+             * @type {boolean}
+             */
+            this["bold_changed"] = false;
+        }
+        if (!("auto_sort" in $$source)) {
+            /**
+             * a load is sorted by name
+             * @member
+             * @type {boolean}
+             */
+            this["auto_sort"] = false;
+        }
+        if (!("remember_window" in $$source)) {
+            /**
+             * keep the window's size and place
+             * @member
+             * @type {boolean}
+             */
+            this["remember_window"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Config instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Config}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Config(/** @type {Partial<Config>} */($$parsedSource));
+    }
+}
+
 export class FileInfo {
     /**
      * Creates a new FileInfo instance.

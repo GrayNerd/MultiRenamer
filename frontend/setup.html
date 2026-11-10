@@ -5,15 +5,51 @@
     <title>Setup</title>
     <link rel="stylesheet" href="/src/style.css" />
 </head>
-<body>
+<body class="setup-body">
     <div class="setup-container">
-        <label>
-            <input type="checkbox" id="dark-mode" />
-            Dark Mode
+        <fieldset class="setup-group">
+            <legend>Theme</legend>
+            <label>
+                <input type="radio" name="theme" value="light" id="theme-light" />
+                Light Mode
+            </label>
+            <label>
+                <input type="radio" name="theme" value="dark" id="theme-dark" />
+                Dark Mode
+            </label>
+        </fieldset>
+
+        <fieldset class="setup-group">
+            <legend>Toolbar:</legend>
+            <label>
+                <input type="checkbox" id="toolbar-text" />
+                Show Text
+            </label>
+        </fieldset>
+
+        <label class="setup-row">
+            <input type="checkbox" id="bold-changed" />
+            Bold changed file names
         </label>
+
+        <label class="setup-row">
+            <input type="checkbox" id="auto-sort" />
+            Auto Sort Column
+        </label>
+
+        <label class="setup-row">
+            <input type="checkbox" id="remember-window" />
+            Save current window size/location on exit
+        </label>
+
         <!-- Which build this is: a window left open from an earlier one looks
              exactly like this one otherwise. -->
         <p class="build" id="build"></p>
+
+        <div class="setup-footer">
+            <button type="button" id="btn-cancel">Cancel</button>
+            <button type="button" id="btn-save" class="primary">Save</button>
+        </div>
     </div>
     <script type="module" src="/src/setup.js"></script>
 </body>

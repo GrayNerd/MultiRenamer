@@ -8,5 +8,6 @@ export {
 };
 
 export {
+    Config,
     FileInfo
 } from "./models.js";

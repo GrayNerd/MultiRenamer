@@ -27,13 +27,33 @@ export function Build() {
 }
 
 /**
+ * GetConfig is the options in force: what the Setup window fills itself in from,
+ * and what the grid applies when it starts.
+ * @returns {$CancellablePromise<$models.Config>}
+ */
+export function GetConfig() {
+    return $Call.ByID(1200034045).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType0($result);
+    }));
+}
+
+/**
+ * HideSetup puts the setup window away, the way its own close button does. Save
+ * and Cancel both end there.
+ * @returns {$CancellablePromise<void>}
+ */
+export function HideSetup() {
+    return $Call.ByID(315574022);
+}
+
+/**
  * LoadDirectory opens a native directory picker and returns what is in the
  * chosen directory: its files and its subdirectories, one level only.
  * @returns {$CancellablePromise<$models.FileInfo[]>}
  */
 export function LoadDirectory() {
     return $Call.ByID(2098274188).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType1($result);
+        return $$createType2($result);
     }));
 }
 
@@ -49,8 +69,19 @@ export function LoadDirectory() {
  */
 export function LoadPaths(paths) {
     return $Call.ByID(198101851, paths).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType1($result);
+        return $$createType2($result);
     }));
+}
+
+/**
+ * SaveConfig keeps the options the Setup window handed over: it writes them to
+ * the configuration file, holds them for the rest of the run, and tells the open
+ * windows so they change without a restart.
+ * @param {$models.Config} cfg
+ * @returns {$CancellablePromise<void>}
+ */
+export function SaveConfig(cfg) {
+    return $Call.ByID(3442292638, cfg);
 }
 
 /**
@@ -69,18 +100,8 @@ export function LoadPaths(paths) {
  */
 export function SaveRenames(rows) {
     return $Call.ByID(6598195, rows).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType1($result);
+        return $$createType2($result);
     }));
-}
-
-/**
- * SetTheme switches the frontend CSS between light and dark mode.
- * Native title‑bar theming is platform‑specific in v3; CSS is the reliable cross‑platform approach.
- * @param {boolean} dark
- * @returns {$CancellablePromise<void>}
- */
-export function SetTheme(dark) {
-    return $Call.ByID(3669652676, dark);
 }
 
 /**
@@ -92,5 +113,6 @@ export function ShowSetup() {
 }
 
 // Private type creation functions
-const $$createType0 = $models.FileInfo.createFrom;
-const $$createType1 = $Create.Array($$createType0);
+const $$createType0 = $models.Config.createFrom;
+const $$createType1 = $models.FileInfo.createFrom;
+const $$createType2 = $Create.Array($$createType1);

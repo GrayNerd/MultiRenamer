@@ -12,6 +12,7 @@ import { createHistory } from "./history.js";
 import { createMacroRecorder } from "./macro.js";
 import { createMultiRowEditor } from "./mirror.js";
 import { createOvertype } from "./overtype.js";
+import { applyPreferences, setupPreferences } from "./preferences.js";
 import { forgetRefused, markRefused } from "./refused.js";
 import { setupRowSelection } from "./rowselection.js";
 import { createToolbarState } from "./toolbar.js";
@@ -95,6 +96,10 @@ table.on("cellEdited", forgetRefused);
 
 // A name that has been edited is shown in bold, once the edit is finished.
 setupEditedNames(table);
+
+// What the Setup window saved: the theme, the toolbar text, the bold, and the
+// sort a load starts with.
+setupPreferences(table);
 
 // --------------------------------------------------
 // Toolbar — each click now calls the imported binding
@@ -187,10 +192,13 @@ Events.On("files-dropped", async (ev) => {
     }
 });
 
-// Theme — toggle dark class on body so both main and setup windows match
-Events.On("theme-changed", (ev) => {
-    document.body.classList.toggle("dark", !!ev.data);
-});
+// The options from the Setup window: applied when the grid starts, and again
+// whenever they are saved, so a change shows without a restart.
+App.GetConfig()
+    .then((cfg) => applyPreferences(table, cfg))
+    .catch((err) => console.error("GetConfig failed:", err));
+
+Events.On("config-changed", (ev) => applyPreferences(table, ev.data));
 
 // --------------------------------------------------
 // Macro recorder — records keystrokes in a Name cell and replays them

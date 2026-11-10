@@ -96,6 +96,13 @@ body {
     flex-shrink: 0;
 }
 
+/* "Show Text" is on by default: the word sits beside the icon. Unticked,
+   preferences.js sets data-toolbar-text="false" on <body> and only the icons are
+   left. The Record button's label is a span like these, so it hides with them. */
+body[data-toolbar-text="false"] #toolbar .btn-label {
+    display: none;
+}
+
 /* ---- Grid fills the rest of the window ---- */
 #grid {
     flex: 1 1 auto;
@@ -169,6 +176,12 @@ body {
    driven from edited.js. */
 .tabulator .tabulator-row.rename-edited .tabulator-cell[tabulator-field="name"]:not(.tabulator-editing) {
     font-weight: bold;
+}
+
+/* "Bold changed file names" unticked: the mark is still there, the weight is not.
+   preferences.js sets this class from the saved option. */
+body.no-bold-changed .tabulator .tabulator-row.rename-edited .tabulator-cell[tabulator-field="name"] {
+    font-weight: normal;
 }
 
 /* A name the last save could not change: it was put back to what is on disk, and
@@ -245,11 +258,20 @@ body.dark .tabulator .tabulator-row.rename-failed .tabulator-cell[tabulator-fiel
 }
 
 /* ---- Setup window ---- */
+/* The window is a column: the options scroll if they have to, and the Cancel and
+   Save buttons stay at the bottom of the window. */
+.setup-body {
+    overflow: hidden;
+}
+
 .setup-container {
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     gap: 12px;
+    box-sizing: border-box;
     padding: 16px;
+    overflow-y: auto;
     background: var(--bg);
     color: var(--fg);
 }
@@ -260,11 +282,63 @@ body.dark .tabulator .tabulator-row.rename-failed .tabulator-cell[tabulator-fiel
     gap: 8px;
 }
 
-/* The build the open window belongs to, so an older one is easy to spot. */
+.setup-container .setup-row {
+    margin: 0;
+}
+
+/* A group of options with its name above them. */
+.setup-group {
+    margin: 0;
+    padding: 8px 12px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.setup-group legend {
+    padding: 0 4px;
+    font-weight: bold;
+}
+
+/* The build the open window belongs to, so an older one is easy to spot. The
+   space above it belongs to the buttons, which sit at the bottom of the window. */
 .setup-container .build {
     margin: 0;
+    margin-top: auto;
     font-size: 12px;
     opacity: 0.6;
+}
+
+/* Cancel and Save, at the bottom of the window. */
+.setup-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 4px;
+}
+
+.setup-footer button {
+    min-width: 84px;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--toolbar-bg);
+    color: var(--fg);
+    font: inherit;
+    cursor: pointer;
+}
+
+.setup-footer button:hover {
+    background: var(--border);
+}
+
+.setup-footer button.primary {
+    border-color: #1d68cd;
+    background: #1d68cd;
+    color: #ffffff;
+}
+
+.setup-footer button.primary:hover {
+    background: #1759ad;
 }
 
 /* ---- Drop feedback ---- */
