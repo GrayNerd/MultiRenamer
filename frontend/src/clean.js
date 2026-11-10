@@ -6,9 +6,11 @@
 // becomes "Plate 25.4mm"), and a leading dot stays because on Unix that is what
 // hides the file (".hidden_file" becomes ".Hidden File"). A dash joins the parts of
 // one word and becomes a space, but one that already has a space beside it is a dash
-// between words — "1 - text" — and is left as it is. Runs of separators become a
-// single space, and the ends are trimmed; a name that would be left with nothing in
-// it is not touched at all.
+// between words — "1 - text" — and is left as it is, and neither is one holding a
+// date or a range together, where the digits on either side are what it is for
+// ("2024-01-15" stays as it is). Runs of separators become a single space, and the
+// ends are trimmed; a name that would be left with nothing in it is not touched at
+// all.
 //
 // The capitalisation is ap-style-title-case's: the words that carry the meaning are
 // capitalised, the short joiners are not, and a word that is already capitalised
@@ -33,9 +35,14 @@ export function cleanName(name) {
     for (let i = 0; i < body.length; i += 1) {
         const character = body[i];
         const decimalPoint = character === "." && isDigit(body[i - 1]) && isDigit(body[i + 1]);
-        const joinedDash = character === "-" && !isSpace(body[i - 1]) && !isSpace(body[i + 1]);
 
-        const separator = character === "_" || joinedDash || (character === "." && !decimalPoint);
+        // A dash inside a word separates its parts, but one between two digits is
+        // part of the number: a date ("2024-01-15") or a range ("2-4") keeps it.
+        const joiningDash = character === "-"
+            && !isSpace(body[i - 1]) && !isSpace(body[i + 1])
+            && !(isDigit(body[i - 1]) && isDigit(body[i + 1]));
+
+        const separator = character === "_" || joiningDash || (character === "." && !decimalPoint);
         out += separator ? " " : character;
     }
 

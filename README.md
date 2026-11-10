@@ -27,7 +27,8 @@ v3 window (Go backend) around a Tabulator grid.
   beside it is already between words and stays (`1 - text`). What is left is given
   AP-style title case, so `this is an example` becomes `This Is an Example` and the
   short joiners (`the`, `of`, `an`) stay in lower case. A dot between two digits is
-  left alone so a decimal (`plate_25.4mm`) survives, and a leading dot stays so a
+  left alone so a decimal (`plate_25.4mm`) survives, a dash between two digits does
+  the same so a date keeps its shape (`2024-01-15`), and a leading dot stays so a
   dotfile stays hidden.
 - **Undo.** The button or Ctrl/Cmd+Z, from anywhere. One edit is one step, a
   multi-row edit is one step per keystroke, and a macro press is one step per row it
@@ -113,8 +114,9 @@ other platforms comes from the Wails template.
    `my_report.final` becomes `My Report Final`, and `this-is-an-example` becomes
    `This Is an Example` — a dash with a space beside it is left alone, so `1 - text`
    becomes `1 - Text`. A dot between two digits is kept, so `plate_25.4mm` becomes
-   `Plate 25.4mm`, and a leading dot stays, so a dotfile stays hidden. `Undo` takes
-   it back a row at a time.
+   `Plate 25.4mm`, and so is a dash between two digits, so `2024-01-15` keeps its
+   date. A leading dot stays, so a dotfile stays hidden. `Undo` takes it back a row
+   at a time.
 6. **Repeat a rename.** `Record`, make the edit in a row, then `Record` again to stop.
    `Play` repeats it on one row; `Play All` on every row on screen, or only on the
    highlighted rows if any are highlighted.

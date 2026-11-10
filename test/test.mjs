@@ -499,6 +499,12 @@ async function cleanSteps() {
         cleanName("1 - text") === "1 - Text", cleanName("1 - text"));
     check("clean: a dash with a space on one side only is left alone",
         cleanName("signed -by-hand") === "Signed -by Hand", cleanName("signed -by-hand"));
+    check("clean: the dashes in a date are kept",
+        cleanName("2024-01-15") === "2024-01-15", cleanName("2024-01-15"));
+    check("clean: a date keeps its dashes while the rest is cleaned",
+        cleanName("2024-01-15_end_of_year") === "2024-01-15 End of Year", cleanName("2024-01-15_end_of_year"));
+    check("clean: a dash beside a letter still becomes a space",
+        cleanName("part-2") === "Part 2", cleanName("part-2"));
     check("clean: a leading dot stays, so the file stays hidden",
         cleanName(".hidden_file") === ".Hidden File", cleanName(".hidden_file"));
     check("clean: runs of separators become one space",
