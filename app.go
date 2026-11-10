@@ -417,34 +417,43 @@ func (a *App) closeOtherWindows() {
 	}
 }
 
+// The setup dialog's size. It has no frame to resize, so the size is fixed.
+const (
+	setupWindowWidth  = 460
+	setupWindowHeight = 600
+)
+
 // newSetupWindow builds the hidden setup window.
 //
-// Closing it only hides it. Wails destroys a window whose close is not
-// cancelled (it is then dropped from the registry, and Show cannot revive a
-// destroyed window), so letting the close through would leave the Setup button
-// permanently dead after the window had been closed once. The exception is the
-// app going with the main window: then it has to close for real, or it would be
-// the last window standing and the app would never quit.
+// It is a dialog, not a window of its own: no title bar, so there is nothing to
+// minimise, maximise or close it with; no resizing; and kept in front of the grid,
+// which is as close to modal as Wails gets. Anything that asks it to close — the
+// window manager's shortcut, Alt+F4 — is refused, so Cancel and Save are the only
+// ways out. The one exception is the app going with the main window: then it has
+// to close for real, or it would be the last window standing and the app would
+// never quit.
 func (a *App) newSetupWindow() *application.WebviewWindow {
 	w := a.app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name:   setupWindowName,
-		Title:  "Setup",
-		Width:  460,
-		Height: 560,
-		Hidden: true,
-		URL:    "/setup.html",
+		Name:          setupWindowName,
+		Title:         "Setup",
+		Width:         setupWindowWidth,
+		Height:        setupWindowHeight,
+		Hidden:        true,
+		URL:           "/setup.html",
+		Frameless:     true,
+		DisableResize: true,
+		AlwaysOnTop:   true,
 	})
 	w.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
 		if a.mainClosing.Load() {
 			return
 		}
-		w.Hide()
 		e.Cancel()
 	})
 	return w
 }
 
-// ShowSetup shows the setup window.
+// ShowSetup shows the setup window over the middle of the main window.
 func (a *App) ShowSetup() {
 	// Normally the window is only hidden, so showing it again is enough. Rebuild
 	// it when it is gone: a destroyed window cannot be shown.
@@ -452,7 +461,24 @@ func (a *App) ShowSetup() {
 		a.setupWindow = a.newSetupWindow()
 	}
 	a.setupWindow.Show()
+	a.centreSetup()
 	a.setupWindow.Focus()
+}
+
+// centreSetup puts the dialog in the middle of the main window. A window manager
+// places a new window where it likes, so the move is made once the dialog is up,
+// which is a move it does honour.
+func (a *App) centreSetup() {
+	if a.mainWindow == nil || a.setupWindow == nil {
+		return
+	}
+
+	x, y := a.mainWindow.Position()
+	width, height := a.mainWindow.Size()
+	a.setupWindow.SetPosition(
+		x+(width-setupWindowWidth)/2,
+		y+(height-setupWindowHeight)/2,
+	)
 }
 
 // GetConfig is the options in force: what the Setup window fills itself in from,

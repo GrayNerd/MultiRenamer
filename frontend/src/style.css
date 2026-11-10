@@ -258,12 +258,30 @@ body.dark .tabulator .tabulator-row.rename-failed .tabulator-cell[tabulator-fiel
 }
 
 /* ---- Setup window ---- */
-/* The window is a column: the options scroll if they have to, and the Cancel and
-   Save buttons stay at the bottom of the window. */
+/* The window has no frame of its own (app.go makes it frameless, so there is no
+   title bar with minimise, maximise and close on it): the strip below is the
+   title, and this border draws the window's edge. */
 .setup-body {
     overflow: hidden;
+    box-sizing: border-box;
+    border: 1px solid var(--border);
 }
 
+/* The title strip doubles as the handle the window is dragged by. Wails reads
+   --wails-draggable on whatever is under the pointer, and descendants inherit it,
+   so the whole strip drags. */
+.setup-title {
+    --wails-draggable: drag;
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--toolbar-bg);
+    font-weight: bold;
+    user-select: none;
+}
+
+/* The window is a column: the options scroll if they have to, and the Cancel and
+   Save buttons stay at the bottom of the window. */
 .setup-container {
     flex: 1 1 auto;
     display: flex;

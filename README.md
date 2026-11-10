@@ -150,11 +150,14 @@ other platforms comes from the Wails template.
   red**, with the reason on hover, until its name is edited again — not just the
   ones currently visible in the grid. The other rows keep what was typed, so once
   the offending name is fixed the save can be made again.
-- The Setup window (top right) holds the options below and shows which build is
-  running; the same stamp is printed in the log at startup. **Save** writes them out
-  and puts them into effect straight away; **Cancel** leaves them as they were.
-  Closed on its own the window only hides, so the button brings it back; closing the
-  main window closes it for real, along with the rest of the app.
+- The Setup window (top right) is a dialog rather than a window of its own: no title
+  bar to minimise, maximise or close it with, a fixed size, and it comes up in the
+  middle of the grid and stays in front of it. What title bar it has is the strip it
+  is dragged by. **Save** writes the options out and puts them into effect straight
+  away, **Cancel** leaves them as they were, and those two buttons are the only ways
+  out — a window manager's close is refused. It shows which build is running; the
+  same stamp is printed in the log at startup. Closing the main window closes it for
+  real, along with the rest of the app.
 
 ## Configuration
 

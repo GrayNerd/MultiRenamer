@@ -105,7 +105,7 @@ export function SaveRenames(rows) {
 }
 
 /**
- * ShowSetup shows the setup window.
+ * ShowSetup shows the setup window over the middle of the main window.
  * @returns {$CancellablePromise<void>}
  */
 export function ShowSetup() {
