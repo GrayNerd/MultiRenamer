@@ -7,7 +7,8 @@
 //
 // Arrow up/down move the selection to the adjacent row instead of scrolling the
 // grid, holding shift grows or shrinks the selection from the row it started
-// on, and Escape clears it.
+// on, Escape clears it, and Ctrl/Cmd+A with the pointer over the grid highlights
+// every row on screen.
 
 export function setupRowSelection(table, field = "name") {
     let pending = null;   // Name cell clicked, waiting for that click to land
@@ -16,6 +17,12 @@ export function setupRowSelection(table, field = "name") {
 
     // Rows the keyboard walks through: what the filter leaves on screen.
     const onScreen = () => table.getRows("active");
+
+    // Ctrl/Cmd+A belongs to the grid only while the pointer is over it —
+    // anywhere else the key stays the browser's own select-all.
+    let hovering = false;
+    table.element.addEventListener("mouseenter", () => { hovering = true; });
+    table.element.addEventListener("mouseleave", () => { hovering = false; });
 
     // Where in the text a click landed.
     const offsetAt = (cell, x, y) => {
@@ -175,6 +182,25 @@ export function setupRowSelection(table, field = "name") {
         // An open editor owns these keys: the arrows move its caret and Escape
         // cancels the edit. The header filter owns its own caret too.
         if (e.target.closest?.("input, textarea, select, [contenteditable]")) return;
+
+        // Ctrl/Cmd+A over the grid highlights every row on screen — the rows a
+        // filter has hidden stay out of it, as they do for the arrow keys. Left to
+        // the browser, the key would paint the page's text blue instead and leave
+        // the grid's own selection, which Play All, Clean and a macro play work
+        // from, untouched.
+        if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "a") {
+            if (!hovering) return;
+
+            e.preventDefault();   // no text selection as well
+
+            const rows = onScreen();
+            table.deselectRow();
+            if (rows.length) table.selectRow(rows);
+
+            // A later shift+arrow grows or shrinks from the top of the list.
+            cursor = anchor = rows[0] ?? null;
+            return;
+        }
 
         if (e.key === "Escape") {
             table.deselectRow();

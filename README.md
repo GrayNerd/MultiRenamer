@@ -16,8 +16,9 @@ v3 window (Go backend) around a Tabulator grid.
   shown in the Ext column — so the extension cannot be typed away. Folders keep
   their whole name.
 - **Highlight and type once.** Highlight several rows (shift-click a range,
-  ctrl/cmd-click to toggle one), then type into any of them: every keystroke goes
-  into all of them. Cut, copy and paste act on each row's own characters.
+  ctrl/cmd-click to toggle one, or Ctrl/Cmd+A with the pointer over the grid for
+  every row on screen), then type into any of them: every keystroke goes into all
+  of them. Cut, copy and paste act on each row's own characters.
 - **Macros.** Record the keys that rename one row, then Play them into a single row
   or Play All into every row on screen (or just the highlighted ones).
 - **Clean up separators.** `Clean` turns the dots and underscores a name was built
@@ -124,6 +125,7 @@ other platforms comes from the Wails template.
 | Grid | Shift + Up / Down | extend or shrink the highlight |
 | Grid | Click, then click again | select the row, then edit the name at that point |
 | Grid | Shift-click, Ctrl/Cmd-click | highlight a range, add or remove one row |
+| Grid | Ctrl/Cmd + A | highlight every row on screen (pointer over the grid) |
 | Grid | Ctrl/Cmd + H | show or hide dotfiles |
 | Grid | Ctrl/Cmd + Z | undo |
 | Editing | Enter, Tab | commit the name |

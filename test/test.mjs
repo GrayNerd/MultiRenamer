@@ -912,9 +912,9 @@ const clickCell = async (row, field = "name", {x = "left", shift = false, ctrl =
 
 // A keypress as the browser would deliver it, plus whether it was taken.
 // Home and End also move the field's caret, as the browser would.
-const pressKey = (key, {ctrl = false, shift = false, target} = {}) => {
+const pressKey = (key, {ctrl = false, shift = false, meta = false, target} = {}) => {
     const element = target ?? editorInput() ?? document;
-    const event = new KeyboardEvent("keydown", {key, ctrlKey: ctrl, shiftKey: shift, bubbles: true, cancelable: true});
+    const event = new KeyboardEvent("keydown", {key, ctrlKey: ctrl, shiftKey: shift, metaKey: meta, bubbles: true, cancelable: true});
     element.dispatchEvent(event);
 
     if (!event.defaultPrevented && !ctrl && element instanceof HTMLInputElement) {
@@ -1010,6 +1010,46 @@ async function rowselectionSteps() {
 
     pressKey("Escape", {target: document});
     check("keys: Escape clears the highlight", table.getSelectedRows().length === 0, selectedNames().join());
+
+    // ---- Ctrl/Cmd+A over the grid highlights every row -------------------
+    await load(["e-1.txt", "e-2.txt", "e-3.txt", "e-4.txt"]);
+    pressKey("Escape", {target: document});
+
+    // Away from the grid the key is the browser's own, so it is left alone.
+    let taken = pressKey("a", {ctrl: true, target: document});
+    check("keys: Ctrl+A away from the grid is left to the browser",
+        !taken && table.getSelectedRows().length === 0, `${taken} ${selectedNames().join()}`);
+
+    // Over the grid it is the grid's: everything on screen is highlighted, and the
+    // page's text is not.
+    table.element.dispatchEvent(new MouseEvent("mouseenter"));
+    taken = pressKey("a", {ctrl: true, target: document});
+    check("keys: Ctrl+A over the grid highlights every row",
+        taken && selectedNames().join() === "e-1.txt,e-2.txt,e-3.txt,e-4.txt",
+        `${taken} ${selectedNames().join()}`);
+
+    // Rows a filter is hiding are not on screen, so they are not part of it.
+    table.setHeaderFilterValue("name", "e-2");
+    await tick();
+    pressKey("a", {ctrl: true, target: document});
+    check("keys: Ctrl+A leaves the rows a filter has hidden out",
+        selectedNames().join() === "e-2.txt", selectedNames().join());
+
+    table.setHeaderFilterValue("name", "");
+    await tick();
+
+    // Cmd+A is the same key on a Mac.
+    pressKey("Escape", {target: document});
+    pressKey("a", {meta: true, target: document});
+    check("keys: Cmd+A over the grid does the same",
+        selectedNames().join() === "e-1.txt,e-2.txt,e-3.txt,e-4.txt", selectedNames().join());
+
+    // The pointer leaving hands the key back to the browser.
+    table.element.dispatchEvent(new MouseEvent("mouseleave"));
+    pressKey("Escape", {target: document});
+    taken = pressKey("a", {ctrl: true, target: document});
+    check("keys: Ctrl+A is left alone again once the pointer leaves",
+        !taken && table.getSelectedRows().length === 0, `${taken} ${selectedNames().join()}`);
 }
 
 
