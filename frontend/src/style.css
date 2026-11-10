@@ -163,6 +163,14 @@ body {
     white-space: pre !important;
 }
 
+/* A name that has been edited: bold, so what a save will rename stands out. The
+   cell being typed into keeps the normal weight until its editor closes, and the
+   rows a highlighted edit copies itself into wait for the same moment; both are
+   driven from edited.js. */
+.tabulator .tabulator-row.rename-edited .tabulator-cell[tabulator-field="name"]:not(.tabulator-editing) {
+    font-weight: bold;
+}
+
 /* A name the last save could not change: it was put back to what is on disk, and
    it stays red until it is edited again. */
 .tabulator .tabulator-row.rename-failed .tabulator-cell[tabulator-field="name"] {

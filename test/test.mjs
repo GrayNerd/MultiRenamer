@@ -10,6 +10,7 @@ import { createMultiRowEditor } from "/src/mirror.js";
 import { applySteps } from "/src/steps.js";
 import { createOvertype } from "/src/overtype.js";
 import { forgetRefused, markRefused } from "/src/refused.js";
+import { markEdited, setupEditedNames } from "/src/edited.js";
 
 // The undo stack lives in its own module, which older trees do not have; the rest
 // of the suite runs either way and the undo checks report that they were skipped.
@@ -56,7 +57,10 @@ const table = new Tabulator("#grid", {
     selectableRows: true,
     selectableRowsRangeMode: "click",
     editTriggerEvent: false,
-    rowFormatter: markRefused,
+    rowFormatter: (row) => {
+        markRefused(row);
+        markEdited(row);
+    },
 });
 
 preserveCaretAcrossCells(table, "name");
@@ -82,6 +86,7 @@ const history = historyModule
 setupRowSelection(table, "name");
 const multiRow = createMultiRowEditor(table, "name");
 table.on("cellEdited", forgetRefused);
+setupEditedNames(table);
 if (historyModule) history.setMirror(multiRow);
 
 // Insert and overtype, wired last as in main.js.
@@ -346,6 +351,7 @@ async function highlights() {
     await rowselectionSteps();
     await multiRowEditSteps();
     await overtypeSteps();
+    await editedMarkSteps();
     await extensionSteps();
     await hiddenSteps();
     if (historyModule) await undoSteps();
@@ -1370,6 +1376,72 @@ async function overtypeSteps() {
     check("overtype: Insert turns it off for the rest of the run", !caretShown());
     pressKey("Enter");
     await tick(80);
+}
+
+
+// A name that has been edited is bold, and only once its edit is finished.
+async function editedMarkSteps() {
+    const weight = (row) => getComputedStyle(row.getCell("name").getElement()).fontWeight;
+    const marked = (row) => row.getElement().classList.contains("rename-edited");
+    const state = (row) => `${marked(row)} ${weight(row)}`;
+
+    await load(["alpha-1.txt", "alpha-2.txt"]);
+    const rows = table.getRows("active");
+    check("edited: a row nobody has touched is not bold", !marked(rows[0]) && weight(rows[0]) === "400", state(rows[0]));
+
+    await clickCell(rows[0]);
+    await clickCell(rows[0], "name", {x: "right"});
+    typeInto(editorInput(), "X");
+    check("edited: the name being typed keeps the normal weight",
+        !marked(rows[0]) && weight(rows[0]) === "400", state(rows[0]));
+
+    pressKey("Enter");
+    await tick(80);
+    check("edited: the finished edit is bold", marked(rows[0]) && weight(rows[0]) === "700", state(rows[0]));
+
+    // ---- editing it back to what is on disk takes the bold away ---------
+    await clickCell(rows[0]);
+    await clickCell(rows[0], "name", {x: "right"});
+    const input = editorInput();
+    input.setSelectionRange(0, input.value.length);
+    typeInto(input, "alpha-1.txt");
+    check("edited: an editor opened on a bold row goes back to normal",
+        weight(rows[0]) === "400", state(rows[0]));
+
+    pressKey("Enter");
+    await tick(80);
+    check("edited: edited back, it is no longer bold", !marked(rows[0]) && weight(rows[0]) === "400", state(rows[0]));
+
+    // ---- the rows a highlighted edit copies into wait for the same end --
+    await load(["one-1.txt", "one-2.txt", "one-3.txt"]);
+    const three = table.getRows("active");
+    await clickCell(three[0]);
+    await clickCell(three[1], "name", {shift: true});
+    await clickCell(three[0], "name", {x: "right"});
+    typeInto(editorInput(), "M");
+    check("edited: nothing is bold while the edit is still going",
+        !marked(three[0]) && !marked(three[1]), `${marked(three[0])} ${marked(three[1])}`);
+
+    pressKey("Enter");
+    await tick(80);
+    check("edited: every row the edit reached is bold once it ends",
+        marked(three[0]) && marked(three[1]) && !marked(three[2]),
+        `${marked(three[0])} ${marked(three[1])} ${marked(three[2])}`);
+
+    // ---- undo puts the names back, and the bold with them ---------------
+    if (historyModule) {
+        undoBtn.click();
+        await tick(80);
+        check("edited: undone, no longer bold",
+            !marked(three[0]) && !marked(three[1]) && weight(three[1]) === "400",
+            `${marked(three[0])} ${marked(three[1])} ${weight(three[1])}`);
+    } else {
+        info("edited: undo check skipped: src/history.js is not in this tree");
+    }
+
+    // ---- a load draws its rows unmarked ---------------------------------
+    await load(["two-1.txt"]);
+    check("edited: a fresh load is not bold", !marked(table.getRows("active")[0]));
 }
 
 

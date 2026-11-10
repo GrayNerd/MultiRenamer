@@ -137,6 +137,11 @@ other platforms comes from the Wails template.
   rectangle over that character instead of a vertical bar. The mode is not per edit:
   once overtyping is on it stays on, from row to row and edit to edit, until Insert
   switches it back.
+- A name that has been edited is shown **in bold**, so the rows a save would rename
+  stand out from the ones it would leave alone. The bold appears when the edit is
+  finished — never while the cell is being typed into, nor on the rows a highlighted
+  edit is still copying itself into — and goes away again when the name matches the
+  one on disk: put back by hand, undone, or renamed on disk by a save.
 - Save checks every name before it moves anything: an empty name, `.`, `..`, a name
   used twice in the grid, or a name already taken on disk is refused, and if a rename
   fails the ones already made are put back.
@@ -163,6 +168,7 @@ other platforms comes from the Wails template.
 | `frontend/src/rowselection.js` | clicks and arrow keys: select, edit, move the highlight |
 | `frontend/src/caret.js` | keeps the caret offset when the edit moves between cells |
 | `frontend/src/overtype.js` | insert vs overtype, and the caret that shows which is on |
+| `frontend/src/edited.js` | the bold mark on a name that has been edited |
 | `frontend/src/hidden.js` | the dotfile filter |
 | `frontend/src/toolbar.js` | what each toolbar button can do |
 | `frontend/setup.html`, `frontend/src/setup.js` | the Setup window |

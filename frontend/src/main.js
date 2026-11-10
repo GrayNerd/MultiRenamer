@@ -6,6 +6,7 @@ import * as App from "../bindings/multirenamer/app.js";
 import "tabulator-tables/dist/css/tabulator.min.css";
 import { TabulatorFull as Tabulator } from "tabulator-tables";
 import { preserveCaretAcrossCells } from "./caret.js";
+import { markEdited, setupEditedNames } from "./edited.js";
 import { createHiddenFiles } from "./hidden.js";
 import { createHistory } from "./history.js";
 import { createMacroRecorder } from "./macro.js";
@@ -29,7 +30,12 @@ const table = new Tabulator("#grid", {
     layout: "fitColumns",
     height: "100%",
     placeholder: "No files loaded",
-    rowFormatter: markRefused,
+    // Both marks are worked out from the row's data, so a row is drawn correctly
+    // however it got here: refused by the last save, edited since, or neither.
+    rowFormatter: (row) => {
+        markRefused(row);
+        markEdited(row);
+    },
     columns: [
         // The header filter narrows the list to the names it matches; the rows
         // it hides stay in the grid (and are still saved) but are skipped by
@@ -86,6 +92,9 @@ createOvertype(table, "name");
 
 // A name a save could not change is shown in red until it is edited again.
 table.on("cellEdited", forgetRefused);
+
+// A name that has been edited is shown in bold, once the edit is finished.
+setupEditedNames(table);
 
 // --------------------------------------------------
 // Toolbar — each click now calls the imported binding
