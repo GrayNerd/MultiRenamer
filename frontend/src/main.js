@@ -46,7 +46,7 @@ const table = new Tabulator("#grid", {
     },
     columns: [
         // Each header filter narrows the list to the rows it matches — a name, an
-        // extension, "dir"/"file", or part of a date; the rows it hides stay in
+        // extension, "dir"/"file"; the rows it hides stay in
         // the grid (and are still saved) but are skipped by Record/Play/Play All,
         // which only work on what is on screen.
         { title: "Name",          field: "name",          editor: "input", headerFilter: "input", headerFilterPlaceholder: "Filter", widthGrow: 1, resizable: true, headerSort: true },
@@ -60,11 +60,6 @@ const table = new Tabulator("#grid", {
           formatter: (cell) => typeText(cell.getRow().getData()),
           sorter: (a, b, aRow, bRow) => typeText(aRow.getData()).localeCompare(typeText(bRow.getData())),
           headerFilter: "input", headerFilterPlaceholder: "Filter", headerFilterFunc: typeFilter },
-        { title: "Date Created",  field: "date_created",  width: 175,      widthGrow: 0, resizable: false, headerSort: true,
-          headerFilter: "input", headerFilterPlaceholder: "Filter" },
-        { title: "Date Modified", field: "date_modified", width: 175,      widthGrow: 0, resizable: false, headerSort: true,
-          headerFilter: "input", headerFilterPlaceholder: "Filter" },
-        { title: "Size",          field: "size",          width: 100,      widthGrow: 0, resizable: false, headerSort: true },
         { field: "original_name", visible: false },
         { field: "full_path", visible: false },
     ],

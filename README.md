@@ -9,8 +9,8 @@ v3 window (Go backend) around a Tabulator grid.
 ## What it does
 
 - **A grid of names.** Load lists what is directly inside a folder — files and
-  subfolders, one level only, never into the subfolders — with extension, type,
-  created/modified time and size beside each name.
+  subfolders, one level only, never into the subfolders — with extension and type
+  beside each name.
 - **Edit the name, keep the extension.** The Name column holds a file's name
   without its extension — `/archive.tar.gz` is edited as `archive.tar`, with `gz`
   shown in the Ext column — so the extension cannot be typed away. Folders keep
