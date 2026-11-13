@@ -135,7 +135,20 @@ export function ShowSetup() {
     return $Call.ByID(1496418033);
 }
 
+/**
+ * TakeOpenPaths hands over the files and folders waiting to be loaded and clears
+ * them, so each selection is loaded once: the command line's when the page starts,
+ * and a second launch's as it arrives (see secondInstance).
+ * @returns {$CancellablePromise<string[]>}
+ */
+export function TakeOpenPaths() {
+    return $Call.ByID(2358240386).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType3($result);
+    }));
+}
+
 // Private type creation functions
 const $$createType0 = $models.Config.createFrom;
 const $$createType1 = $models.FileInfo.createFrom;
 const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $Create.Array($Create.Any);

@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"log"
+	"os"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -12,16 +13,15 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-// mainWindowOptions is the window the program opens with: 1200×800, unless the
-// window's size and place were asked to be remembered and there is one stored to
-// restore. It is made hidden, because a window shown at creation is seen in the
-// wrong place and the wrong theme before it is put right: App.ShowMain shows it
-// once the page has applied the saved options.
+// mainWindowOptions is the window the program opens with: 800×800, unless there
+// is a stored size and place to restore. It is made hidden, because a window
+// shown at creation is seen in the wrong place and the wrong theme before it is
+// put right: App.ShowMain shows it once the page has applied the saved options.
 func mainWindowOptions(cfg Config, state WindowState, restore bool) application.WebviewWindowOptions {
 	options := application.WebviewWindowOptions{
 		Name:           "main",
 		Title:          "MultiRenamer",
-		Width:          1200,
+		Width:          800,
 		Height:         800,
 		EnableFileDrop: true,
 		URL:            "/",
@@ -52,22 +52,39 @@ func themeBackground(theme string) application.RGBA {
 	return application.NewRGB(0xff, 0xff, 0xff)
 }
 
+// singleInstanceID names the one copy of the program that may be running. Opening
+// the program again — Nemo opening another selection — hands the arguments to the
+// running copy rather than opening a second window on the same files. It is the
+// product identifier from build/config.yml.
+const singleInstanceID = "com.graynerd.multirenamer"
+
 func main() {
 	// The options are read before the window is made: they decide how it opens,
 	// and the size and place it was left at may have to be restored.
 	cfg := LoadConfig()
-	app := &App{config: cfg}
 
-	// The size and place the window was left at, when they were asked to be kept.
+	// A file manager opens a selection by starting the program with a URI per
+	// file or folder (Nemo does); the page loads them once it is up. A second
+	// launch hands its own over the same way — see secondInstance.
+	app := &App{config: cfg}
+	app.addOpenPaths(pathsFromArgs(os.Args[1:]))
+
+	// The size and place the window was left at, if one has ever been saved: that
+	// is where it opens from now on. The Setup option decides whether this exit
+	// writes a new one, not whether the last one is used.
 	state, restore := WindowState{}, false
-	if cfg.RememberWindow {
-		if dir, err := configDir(); err == nil {
-			state, restore = loadWindowState(dir)
-		}
+	if dir, err := configDir(); err == nil {
+		state, restore = loadWindowState(dir)
 	}
 
 	a := application.New(application.Options{
 		Name: "MultiRenamer",
+		// One copy at a time: a second launch hands its arguments to this one and
+		// exits (see secondInstance).
+		SingleInstance: &application.SingleInstanceOptions{
+			UniqueID:               singleInstanceID,
+			OnSecondInstanceLaunch: app.secondInstance,
+		},
 		// ✅ THIS is what makes bindings generate.
 		Services: []application.Service{
 			application.NewService(app),
@@ -111,6 +128,10 @@ func main() {
 		files := event.Context().DroppedFiles()
 		a.Event.Emit("files-dropped", files)
 	})
+
+	// Everything a second launch needs is in place now: from here its paths can
+	// be handed to the page and its window brought forward.
+	app.ready.Store(true)
 
 	if err := a.Run(); err != nil {
 		log.Fatal(err)

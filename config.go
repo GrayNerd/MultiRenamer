@@ -28,7 +28,7 @@ type Config struct {
 	ToolbarText    bool   `json:"toolbar_text"`    // the toolbar buttons show their text
 	BoldChanged    bool   `json:"bold_changed"`    // a changed name is drawn bold
 	AutoSort       bool   `json:"auto_sort"`       // a load is sorted by name
-	RememberWindow bool   `json:"remember_window"` // keep the window's size and place
+	RememberWindow bool   `json:"remember_window"` // save the window's size and place on exit
 }
 
 // WindowState is how big the main window was, and where.

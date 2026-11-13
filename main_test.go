@@ -11,8 +11,8 @@ func TestMainWindowIsMadeHidden(t *testing.T) {
 		t.Error("the main window should be made hidden")
 	}
 
-	if options.Width != 1200 || options.Height != 800 {
-		t.Errorf("default size: got %dx%d, want 1200x800", options.Width, options.Height)
+	if options.Width != 800 || options.Height != 800 {
+		t.Errorf("default size: got %dx%d, want 800x800", options.Width, options.Height)
 	}
 }
 
@@ -28,12 +28,12 @@ func TestMainWindowTakesTheStoredSize(t *testing.T) {
 	}
 }
 
-func TestMainWindowIgnoresAStoredSizeWhenNotAskedFor(t *testing.T) {
+func TestMainWindowIgnoresAStoredSizeWhenThereIsNoneToRestore(t *testing.T) {
 	state := WindowState{Width: 900, Height: 700, X: 40, Y: 50}
 	options := mainWindowOptions(defaultConfig(), state, false)
 
-	if options.Width != 1200 || options.Height != 800 {
-		t.Errorf("size without remembering: got %dx%d, want 1200x800", options.Width, options.Height)
+	if options.Width != 800 || options.Height != 800 {
+		t.Errorf("size without remembering: got %dx%d, want 800x800", options.Width, options.Height)
 	}
 }
 

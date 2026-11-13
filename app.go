@@ -36,6 +36,19 @@ type App struct {
 	configMu sync.RWMutex
 	config   Config
 
+	// openPaths are the files and folders waiting to be put in the grid: the ones
+	// the program was started with, and any a second launch handed over while it
+	// was running. The page takes them when it is ready, so a selection that
+	// arrives before the grid is up is not lost.
+	openPathsMu sync.Mutex
+	openPaths   []string
+
+	// ready is set once the application and its windows exist. A second launch can
+	// be announced while the program is still being put together, when there is
+	// no page to tell and no window to bring forward; until then the paths simply
+	// wait to be taken.
+	ready atomic.Bool
+
 	// mainClosing is set as the main window closes. From then on the setup window
 	// may close for real: hiding it would leave it as the last window standing,
 	// and the application only quits once its last window is gone.
@@ -96,6 +109,73 @@ func (a *App) Build() string {
 	}
 
 	return info.ModTime().Format("2006-01-02 15:04")
+}
+
+// addOpenPaths puts paths in line to be loaded, and tells the page when there is
+// one to tell. The ones the program was started with are added before the
+// application exists, so there is no page yet: the page takes those when it
+// starts. A second launch adds to the same line at any time.
+func (a *App) addOpenPaths(paths []string) {
+	if len(paths) == 0 {
+		return
+	}
+
+	a.openPathsMu.Lock()
+	a.openPaths = append(a.openPaths, paths...)
+	a.openPathsMu.Unlock()
+
+	if a.ready.Load() {
+		a.app.Event.Emit(openPathsEvent)
+	}
+}
+
+// openPathsEvent tells the page that there are paths waiting to be taken.
+const openPathsEvent = "open-paths"
+
+// TakeOpenPaths hands over the files and folders waiting to be loaded and clears
+// them, so each selection is loaded once: the command line's when the page starts,
+// and a second launch's as it arrives (see secondInstance).
+func (a *App) TakeOpenPaths() []string {
+	a.openPathsMu.Lock()
+	defer a.openPathsMu.Unlock()
+
+	paths := a.openPaths
+	a.openPaths = nil
+	return paths
+}
+
+// secondInstance is called when the program is launched again while it is already
+// running — Nemo opening another selection. A second copy would only be another
+// window that could rename the same files, so it hands its arguments over and
+// exits; the paths join the ones waiting to be loaded, and the window comes to
+// the front.
+func (a *App) secondInstance(data application.SecondInstanceData) {
+	if len(data.Args) > 1 {
+		// Args[0] is the program itself, as in os.Args. A relative path means
+		// where the second copy was started, which need not be where this one
+		// was.
+		paths := pathsFromArgs(data.Args[1:])
+		for i, path := range paths {
+			if !filepath.IsAbs(path) && data.WorkingDir != "" {
+				paths[i] = filepath.Join(data.WorkingDir, path)
+			}
+		}
+		a.addOpenPaths(paths)
+	}
+	a.focusMain()
+}
+
+// focusMain brings the main window to the front. While the program is still
+// starting the window is left to ShowMain, which puts it up once the page has
+// applied the saved options; the paths wait for the page all the same.
+func (a *App) focusMain() {
+	if !a.ready.Load() || a.mainWindow == nil || !a.mainShown.Load() {
+		return
+	}
+
+	a.mainWindow.Show()    // it may have been hidden
+	a.mainWindow.Restore() // and it may be minimised
+	a.mainWindow.Focus()
 }
 
 // LoadDirectory opens a native directory picker and returns what is in the
@@ -487,33 +567,106 @@ func (a *App) ShowMain() {
 		return
 	}
 
-	// The window is put up first and moved once it is up: a window manager places a
-	// new window where it likes, and a move asked for before it has done that is
-	// thrown away. It is minimised for that moment, so the move is made while it is
-	// out of sight and it is brought back where it belongs.
-	a.mainWindow.Show()
-	if a.hasWindowState {
-		a.mainWindow.Minimise()
-
+	// Where the window was left is given to the window manager as the window is
+	// mapped, so its first frame is already in place. A window shown first is seen
+	// for a moment where the manager chose to put it before it is moved.
+	if a.hasWindowState && showWindowAt(a.mainWindow, a.windowState.X, a.windowState.Y) {
 		go func() {
-			time.Sleep(80 * time.Millisecond) // the window manager has placed it by now
-			a.mainWindow.SetPosition(a.windowState.X, a.windowState.Y)
-
-			time.Sleep(40 * time.Millisecond) // and has taken the move
-			a.mainWindow.UnMinimise()
-
-			// Coming back and being raised are two steps to the window manager, and
-			// a raise asked for while the window is still coming back is lost, so
-			// it is asked for until the window has the focus.
-			for attempt := 0; attempt < 10 && !a.mainWindow.IsFocused(); attempt++ {
-				a.mainWindow.Focus()
-				time.Sleep(50 * time.Millisecond)
+			time.Sleep(150 * time.Millisecond) // the window is up
+			if x, y := a.mainWindow.Position(); x != a.windowState.X || y != a.windowState.Y {
+				a.placeMainWindow(a.windowState.X, a.windowState.Y)
 			}
+			a.focusMainWindow()
 		}()
 		return
 	}
 
-	a.mainWindow.Focus()
+	// Not every display lets a program say where its window goes (Wayland does
+	// not). The manager places a new window where it likes, and a move asked for
+	// before it has done that is thrown away, so the window is minimised for the
+	// moment the manager places it; a move made while it is minimised is not
+	// always taken either, hence the attempts and the check once it is back.
+	a.mainWindow.Show()
+	if !a.hasWindowState {
+		a.mainWindow.Focus()
+		return
+	}
+
+	a.mainWindow.Minimise()
+
+	go func() {
+		time.Sleep(80 * time.Millisecond) // the window manager has placed it by now
+		for attempt := 0; attempt < 2; attempt++ {
+			if a.placeMainWindow(a.windowState.X, a.windowState.Y) {
+				break
+			}
+		}
+		a.mainWindow.UnMinimise()
+
+		time.Sleep(150 * time.Millisecond) // and the window is back
+		if x, y := a.mainWindow.Position(); x != a.windowState.X || y != a.windowState.Y {
+			a.placeMainWindow(a.windowState.X, a.windowState.Y)
+		}
+
+		a.focusMainWindow()
+	}()
+}
+
+// focusMainWindow asks for the main window to be raised until it has the focus.
+// Coming back and being raised are two steps to the window manager, and a raise
+// asked for while the window is still coming back is lost.
+func (a *App) focusMainWindow() {
+	for attempt := 0; attempt < 10 && !a.mainWindow.IsFocused(); attempt++ {
+		a.mainWindow.Focus()
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+// placeMainWindow puts the window's content at x,y on the screen. The answer is
+// false when the window manager did not take the move at all, so the caller can
+// ask again.
+//
+// A reparenting window manager moves the window's frame when it is asked to move
+// the window, while the position read back is the content's: the title bar is
+// left between the two, and the content ends up lower than it was asked for. The
+// move is read back and made again by the difference, so the content lands where
+// it was when the window was closed. Only a difference the size of a decoration
+// is taken for one; a larger one is the window manager placing the window itself
+// — a spot that no longer fits on the screen, say — and is left alone.
+func (a *App) placeMainWindow(x, y int) bool {
+	beforeX, beforeY := a.mainWindow.Position()
+	if beforeX == x && beforeY == y {
+		return true
+	}
+
+	a.mainWindow.SetPosition(x, y)
+
+	// The move goes through the window manager, so it is not in effect the moment
+	// the call returns.
+	gotX, gotY := beforeX, beforeY
+	for attempt := 0; attempt < 30 && gotX == beforeX && gotY == beforeY; attempt++ {
+		time.Sleep(10 * time.Millisecond)
+		gotX, gotY = a.mainWindow.Position()
+	}
+
+	dx, dy := gotX-x, gotY-y
+	// A reparenting manager takes the position as the frame's: the content is
+	// left a title bar lower than asked, and the position may not change at all
+	// when the frame was already there. That difference is made up here.
+	const decoration = 100
+	if (dx != 0 || dy != 0) &&
+		dx >= -decoration && dx <= decoration && dy >= -decoration && dy <= decoration {
+		a.mainWindow.SetPosition(x-dx, y-dy)
+		return true
+	}
+	if gotX == x && gotY == y {
+		return true
+	}
+	if gotX == beforeX && gotY == beforeY {
+		return false // the window manager did not take the move
+	}
+
+	return true // the manager placed it where it would; nothing more to do
 }
 
 // ShowSetup shows the setup window over the middle of the main window.

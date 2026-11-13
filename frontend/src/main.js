@@ -175,6 +175,32 @@ document.getElementById("btn-setup").addEventListener("click", () => {
     App.ShowSetup().catch(err => console.error("ShowSetup failed:", err));
 });
 
+// Replaces the grid with what is at these paths — what the Load button does, for
+// paths that arrive from outside the grid. A drop and a selection handed over to
+// the program both come through here, so they behave alike.
+//
+// Loads run one at a time: two selections arriving together — a drop while the
+// command line's is still being read, say — would otherwise replace each other's
+// grid in whatever order their file reads happened to finish.
+let loading = Promise.resolve();
+
+function loadPaths(paths) {
+    if (!Array.isArray(paths) || paths.length === 0) return loading;
+
+    loading = loading.then(async () => {
+        try {
+            const rows = await App.LoadPaths(paths);
+            if (rows && rows.length) {
+                await table.replaceData(rows);
+                hiddenFiles.reset();        // a new list starts with hidden files hidden
+            }
+        } catch (err) {
+            console.error("LoadPaths failed:", err);
+        }
+    });
+    return loading;
+}
+
 // --------------------------------------------------
 // Drag and drop
 //
@@ -185,28 +211,44 @@ document.getElementById("btn-setup").addEventListener("click", () => {
 // there as "files-dropped" with the dropped paths (see main.go), and this is
 // what loads them — the same replace-the-grid behaviour as the Load button.
 // --------------------------------------------------
-Events.On("files-dropped", async (ev) => {
-    const paths = Array.isArray(ev.data) ? ev.data : [];
-    if (paths.length === 0) return;
-
-    try {
-        const rows = await App.LoadPaths(paths);
-        if (rows && rows.length) {
-            table.replaceData(rows);
-            hiddenFiles.reset();        // a new list starts with hidden files hidden
-        }
-    } catch (err) {
-        console.error("LoadPaths failed:", err);
-    }
+Events.On("files-dropped", (ev) => {
+    loadPaths(Array.isArray(ev.data) ? ev.data : []);
 });
 
+// The files and folders waiting to be loaded: the ones the program was started
+// with, and any a second launch handed over. Go keeps them until they are taken,
+// so a selection that arrives before the grid is ready is not lost (see app.go).
+async function takeOpenPaths() {
+    let paths;
+    try {
+        paths = await App.TakeOpenPaths();
+    } catch (err) {
+        console.error("TakeOpenPaths failed:", err);
+        return;
+    }
+    await loadPaths(paths);
+}
+
+// A second launch — Nemo opening another selection while the program is running —
+// has handed its URIs to this copy, which says so with this event. The window has
+// already been brought to the front; the files are loaded like any other.
+//
 // The options from the Setup window: applied when the grid starts, and again
 // whenever they are saved, so a change shows without a restart. The window is
 // made hidden until this has happened, so it is never seen in the light theme or
 // in the wrong place before the options are on; ShowMain is what puts it up.
-App.GetConfig()
+//
+// Both the selection the program started with and one arriving later wait for
+// the options, so a load is sorted the way the option asks however early it
+// comes.
+const preferencesApplied = App.GetConfig()
     .then((cfg) => applyPreferences(table, cfg))
-    .catch((err) => console.error("GetConfig failed:", err))
+    .catch((err) => console.error("GetConfig failed:", err));
+
+Events.On("open-paths", () => preferencesApplied.then(takeOpenPaths));
+
+preferencesApplied
+    .then(takeOpenPaths)
     // The grid was built while the window was still hidden, so its columns were
     // fitted to a width there was no window for: fit them again now there is one.
     .finally(() => App.ShowMain()

@@ -49,6 +49,9 @@ v3 window (Go backend) around a Tabulator grid.
   sudo apt install libgtk-4-dev libwebkitgtk-6.0-dev pkg-config gcc libc6-dev
   ```
 
+  (`libx11-dev`, which the pre-show window placement links against, comes with
+  `libgtk-4-dev`.)
+
 - Optional, for the task shortcuts and hot reload: the Wails v3 CLI and go-task
 
   ```sh
@@ -93,6 +96,32 @@ task dev               # or: wails3 dev -config ./build/config.yml -port 9245
 
 Linux is what this has been built and driven on; the packaging metadata for the
 other platforms comes from the Wails template.
+
+## Command line
+
+Opening the program with a selection — Nemo's "Open With", which starts it with a
+`file://` URI for each file or folder picked — fills the grid with those files and
+folders. The URIs are unescaped into paths, so a name with a space or a `#` in it
+arrives intact. Only what was picked together is passed this way: opening a single
+folder browses into it instead, so the command line never has to stand for a
+folder's contents.
+
+```sh
+./bin/MultiRenamer file:///home/ken/notes.txt "file:///home/ken/My%20File.txt"
+```
+
+A plain path works as well, so the program can be started by hand. An argument
+naming something that is not on this machine — another host, or another scheme
+such as `https://` — is ignored. With no arguments the grid starts empty.
+
+Only one copy runs at a time. Opening the program again while it is running —
+Nemo opening another selection — hands the new files to the window that is
+already open, brings it to the front, and the second copy exits. A selection that
+arrives while the window is still starting waits for the grid rather than being
+lost.
+
+The Linux desktop entry's `Exec` line ends in `%U`, which is what has the file
+manager pass the URIs; `task package` writes it from `build/linux/Taskfile.yml`.
 
 ## Using it
 
@@ -203,10 +232,18 @@ if it is not there:
 | Toolbar: Show Text | on | The word beside each toolbar icon; off leaves the icon, which shows its word as a tip when the pointer rests on it |
 | Bold changed file names | on | A name that differs from the one on disk is drawn bold |
 | Auto Sort Column | on | Every load is sorted by name; off keeps the folder's own order |
-| Save current window size/location on exit | off | Restores the window where it was left |
+| Save current window size/location on exit | off | Writes the window's size and place when the program exits; the last one written is where it opens next time |
 
 `window.json` sits beside it and is written when the program exits, but only while
-that last option is on; it holds the main window's width, height and position.
+that last option is on; it holds the main window's width, height and position. Once
+written it is the window's default size and place, whether or not the option is
+still on: the option decides whether another one is written, not whether the last
+one is used.
+
+On X11 the place is handed to the window manager before the window is first shown,
+so it opens where it was left without being seen anywhere else first. Where a
+program cannot place its own window (Wayland), the window is moved as soon as it is
+up instead.
 
 Whatever is in the files is read when the program starts, so a hand-edited
 `config.json` is honoured. A missing or unreadable file falls back to the defaults.
@@ -218,8 +255,10 @@ and place are in effect, so it is never seen in the light theme or in the wrong 
 | Path | What is in it |
 | --- | --- |
 | `main.go` | the window, file drop, and the embedded frontend |
-| `app.go` | loading, renaming, the dialogs, the build stamp |
+| `app.go` | loading, renaming, the dialogs, the single-instance handoff, the build stamp |
+| `cli.go` | the command line: a file manager's `file://` URIs as local paths |
 | `config.go` | the saved options and window geometry, and where they live |
+| `window_place_linux.go`, `window_place_other.go` | where the window goes before it is first shown (X11), and the no-op elsewhere |
 | `frontend/index.html` | toolbar and grid markup |
 | `frontend/src/main.js` | grid setup, toolbar wiring, load and save |
 | `frontend/src/mirror.js` | multi-row editing: one edit, every highlighted row |

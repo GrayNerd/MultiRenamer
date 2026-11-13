@@ -50,7 +50,7 @@ export class Config {
         }
         if (!("remember_window" in $$source)) {
             /**
-             * keep the window's size and place
+             * save the window's size and place on exit
              * @member
              * @type {boolean}
              */

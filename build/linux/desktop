@@ -2,8 +2,8 @@
 Version=1.0
 Name=MultiRenamer
 Comment=Rename many files and directories at once
-# The Exec line includes %u to pass the URL to the application
-Exec=/usr/local/bin/MultiRenamer %u
+# The Exec line includes %U to pass the URIs of everything that was selected
+Exec=/usr/local/bin/MultiRenamer %U
 Terminal=false
 Type=Application
 Icon=MultiRenamer

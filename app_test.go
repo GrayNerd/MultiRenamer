@@ -173,3 +173,60 @@ func TestSaveRenamesMarksTheRefusedRowAndPutsItsNameBack(t *testing.T) {
 		}
 	}
 }
+
+func TestSaveRenamesUpdatesOriginalNameAfterSuccessfulSave(t *testing.T) {
+	dir := t.TempDir()
+
+	// Two rows renamed, one row left unchanged.
+	rows := []FileInfo{
+		row(t, dir, "a.txt", "one"), // a.txt -> one.txt
+		row(t, dir, "b.txt", "two"), // b.txt -> two.txt
+		row(t, dir, "c.txt", "c"),   // unchanged: c.txt stays c.txt
+	}
+
+	saved, err := (&App{}).SaveRenames(rows)
+	if err != nil {
+		t.Fatalf("a successful save reported an error: %v", err)
+	}
+	if len(saved) != 3 {
+		t.Fatalf("want all rows back, got %d", len(saved))
+	}
+
+	// Physical files moved on disk: new names present, old names gone.
+	for _, name := range []string{"one.txt", "two.txt", "c.txt"} {
+		if !exists(t, dir, name) {
+			t.Errorf("%s is missing after the save", name)
+		}
+	}
+	for _, name := range []string{"a.txt", "b.txt"} {
+		if exists(t, dir, name) {
+			t.Errorf("%s still exists after the save", name)
+		}
+	}
+
+	// original_name is now the new name for the renamed rows, and untouched
+	// for the unchanged row. FullPath points at the renamed file, extension
+	// restored.
+	want := func(name string) string { return filepath.Join(dir, name) }
+
+	if got := saved[0]; got.OriginalName != "one" || got.Name != "one" {
+		t.Errorf("row 0: original_name=%q name=%q, want both %q", got.OriginalName, got.Name, "one")
+	}
+	if got := saved[0].FullPath; got != want("one.txt") {
+		t.Errorf("row 0 full_path=%q, want %q", got, want("one.txt"))
+	}
+
+	if got := saved[1]; got.OriginalName != "two" || got.Name != "two" {
+		t.Errorf("row 1: original_name=%q name=%q, want both %q", got.OriginalName, got.Name, "two")
+	}
+	if got := saved[1].FullPath; got != want("two.txt") {
+		t.Errorf("row 1 full_path=%q, want %q", got, want("two.txt"))
+	}
+
+	if got := saved[2]; got.OriginalName != "c" || got.Name != "c" {
+		t.Errorf("row 2: original_name=%q name=%q, want both %q", got.OriginalName, got.Name, "c")
+	}
+	if got := saved[2].FullPath; got != want("c.txt") {
+		t.Errorf("row 2 full_path=%q, want %q", got, want("c.txt"))
+	}
+}

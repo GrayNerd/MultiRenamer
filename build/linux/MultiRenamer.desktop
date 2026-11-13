@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=MultiRenamer
-Exec=MultiRenamer
+Exec=MultiRenamer %U
 Icon=MultiRenamer
 Categories=Development;
 Terminal=false
