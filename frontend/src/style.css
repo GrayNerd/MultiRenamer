@@ -225,13 +225,13 @@ body[data-toolbar-text="false"] #toolbar .toolbar-right .btn-label {
    rows a highlighted edit copies itself into wait for the same moment; both are
    driven from edited.js. */
 .tabulator .tabulator-row.rename-edited .tabulator-cell[tabulator-field="name"]:not(.tabulator-editing) {
-    font-weight: bold;
+    font-style: italic;
 }
 
 /* "Bold changed file names" unticked: the mark is still there, the weight is not.
    preferences.js sets this class from the saved option. */
 body.no-bold-changed .tabulator .tabulator-row.rename-edited .tabulator-cell[tabulator-field="name"] {
-    font-weight: normal;
+    font-style: normal;
 }
 
 /* A name the last save could not change: it was put back to what is on disk, and
