@@ -26,7 +26,7 @@ const (
 type Config struct {
 	Theme          string `json:"theme"`           // "light" (the default) or "dark"
 	ToolbarText    bool   `json:"toolbar_text"`    // the toolbar buttons show their text
-	BoldChanged    bool   `json:"bold_changed"`    // a changed name is drawn bold
+	BoldChanged    bool   `json:"bold_changed"`    // a changed name is drawn italic
 	AutoSort       bool   `json:"auto_sort"`       // a load is sorted by name
 	RememberWindow bool   `json:"remember_window"` // save the window's size and place on exit
 }
@@ -41,7 +41,7 @@ type WindowState struct {
 
 // defaultConfig is what a first run starts with, and what a missing or unreadable
 // file falls back to. Light theme, text beside the toolbar icons, changed names
-// in bold, and a load sorted by name — the window's size is not remembered until
+// in italic, and a load sorted by name — the window's size is not remembered until
 // it is asked for.
 func defaultConfig() Config {
 	return Config{

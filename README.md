@@ -185,8 +185,8 @@ manager pass the URIs; `task package` writes it from `build/linux/Taskfile.yml`.
   rectangle over that character instead of a vertical bar. The mode is not per edit:
   once overtyping is on it stays on, from row to row and edit to edit, until Insert
   switches it back.
-- A name that has been edited is shown **in bold**, so the rows a save would rename
-  stand out from the ones it would leave alone. The bold appears when the edit is
+- A name that has been edited is shown **in italic**, so the rows a save would rename
+  stand out from the ones it would leave alone. The italic appears when the edit is
   finished — never while the cell is being typed into, nor on the rows a highlighted
   edit is still copying itself into — and goes away again when the name matches the
   one on disk: put back by hand, undone, or renamed on disk by a save.
@@ -230,7 +230,7 @@ if it is not there:
 | --- | --- | --- |
 | Theme | Light | Light or dark window and grid |
 | Toolbar: Show Text | on | The word beside each toolbar icon; off leaves the icon, which shows its word as a tip when the pointer rests on it |
-| Bold changed file names | on | A name that differs from the one on disk is drawn bold |
+| Italic changed file names | on | A name that differs from the one on disk is drawn in italic; the config key is still `bold_changed` |
 | Auto Sort Column | on | Every load is sorted by name; off keeps the folder's own order |
 | Save current window size/location on exit | off | Writes the window's size and place when the program exits; the last one written is where it opens next time |
 
@@ -269,9 +269,9 @@ and place are in effect, so it is never seen in the light theme or in the wrong 
 | `frontend/src/rowselection.js` | clicks and arrow keys: select, edit, move the highlight |
 | `frontend/src/caret.js` | keeps the caret offset when the edit moves between cells |
 | `frontend/src/overtype.js` | insert vs overtype, and the caret that shows which is on |
-| `frontend/src/edited.js` | the bold mark on a name that has been edited |
+| `frontend/src/edited.js` | the italic mark on a name that has been edited |
 | `frontend/src/clean.js` | the Clean button: separators to spaces, then AP-style title case |
-| `frontend/src/preferences.js` | applies the saved options: theme, toolbar text, bold, sort |
+| `frontend/src/preferences.js` | applies the saved options: theme, toolbar text, italic, sort |
 | `frontend/src/fit.js` | fits the grid's columns once the window is on screen |
 | `frontend/src/hidden.js` | the dotfile filter |
 | `frontend/src/toolbar.js` | what each toolbar button can do |

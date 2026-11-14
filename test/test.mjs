@@ -1611,38 +1611,38 @@ async function overtypeSteps() {
 }
 
 
-// A name that has been edited is bold, and only once its edit is finished.
+// A name that has been edited is italic, and only once its edit is finished.
 async function editedMarkSteps() {
-    const weight = (row) => getComputedStyle(row.getCell("name").getElement()).fontWeight;
+    const slant = (row) => getComputedStyle(row.getCell("name").getElement()).fontStyle;
     const marked = (row) => row.getElement().classList.contains("rename-edited");
-    const state = (row) => `${marked(row)} ${weight(row)}`;
+    const state = (row) => `${marked(row)} ${slant(row)}`;
 
     await load(["alpha-1.txt", "alpha-2.txt"]);
     const rows = table.getRows("active");
-    check("edited: a row nobody has touched is not bold", !marked(rows[0]) && weight(rows[0]) === "400", state(rows[0]));
+    check("edited: a row nobody has touched is not italic", !marked(rows[0]) && slant(rows[0]) === "normal", state(rows[0]));
 
     await clickCell(rows[0]);
     await clickCell(rows[0], "name", {x: "right"});
     typeInto(editorInput(), "X");
-    check("edited: the name being typed keeps the normal weight",
-        !marked(rows[0]) && weight(rows[0]) === "400", state(rows[0]));
+    check("edited: the name being typed keeps the upright face",
+        !marked(rows[0]) && slant(rows[0]) === "normal", state(rows[0]));
 
     pressKey("Enter");
     await tick(80);
-    check("edited: the finished edit is bold", marked(rows[0]) && weight(rows[0]) === "700", state(rows[0]));
+    check("edited: the finished edit is italic", marked(rows[0]) && slant(rows[0]) === "italic", state(rows[0]));
 
-    // ---- editing it back to what is on disk takes the bold away ---------
+    // ---- editing it back to what is on disk takes the slant away ---------
     await clickCell(rows[0]);
     await clickCell(rows[0], "name", {x: "right"});
     const input = editorInput();
     input.setSelectionRange(0, input.value.length);
     typeInto(input, "alpha-1.txt");
-    check("edited: an editor opened on a bold row goes back to normal",
-        weight(rows[0]) === "400", state(rows[0]));
+    check("edited: an editor opened on an italic row goes back to upright",
+        slant(rows[0]) === "normal", state(rows[0]));
 
     pressKey("Enter");
     await tick(80);
-    check("edited: edited back, it is no longer bold", !marked(rows[0]) && weight(rows[0]) === "400", state(rows[0]));
+    check("edited: edited back, it is no longer italic", !marked(rows[0]) && slant(rows[0]) === "normal", state(rows[0]));
 
     // ---- the rows a highlighted edit copies into wait for the same end --
     await load(["one-1.txt", "one-2.txt", "one-3.txt"]);
@@ -1651,29 +1651,29 @@ async function editedMarkSteps() {
     await clickCell(three[1], "name", {shift: true});
     await clickCell(three[0], "name", {x: "right"});
     typeInto(editorInput(), "M");
-    check("edited: nothing is bold while the edit is still going",
+    check("edited: nothing is marked while the edit is still going",
         !marked(three[0]) && !marked(three[1]), `${marked(three[0])} ${marked(three[1])}`);
 
     pressKey("Enter");
     await tick(80);
-    check("edited: every row the edit reached is bold once it ends",
+    check("edited: every row the edit reached is italic once it ends",
         marked(three[0]) && marked(three[1]) && !marked(three[2]),
         `${marked(three[0])} ${marked(three[1])} ${marked(three[2])}`);
 
-    // ---- undo puts the names back, and the bold with them ---------------
+    // ---- undo puts the names back, and the slant with them ---------------
     if (historyModule) {
         undoBtn.click();
         await tick(80);
-        check("edited: undone, no longer bold",
-            !marked(three[0]) && !marked(three[1]) && weight(three[1]) === "400",
-            `${marked(three[0])} ${marked(three[1])} ${weight(three[1])}`);
+        check("edited: undone, no longer italic",
+            !marked(three[0]) && !marked(three[1]) && slant(three[1]) === "normal",
+            `${marked(three[0])} ${marked(three[1])} ${slant(three[1])}`);
     } else {
         info("edited: undo check skipped: src/history.js is not in this tree");
     }
 
     // ---- a load draws its rows unmarked ---------------------------------
     await load(["two-1.txt"]);
-    check("edited: a fresh load is not bold", !marked(table.getRows("active")[0]));
+    check("edited: a fresh load is not italic", !marked(table.getRows("active")[0]));
 }
 
 // A refused save marks every refused row red, not just the ones currently
@@ -1716,7 +1716,7 @@ async function refusedMarkSteps() {
 async function preferencesSteps() {
     const body = document.body;
     const label = document.querySelector("#btn-record .btn-label");
-    const weightOf = (row) => getComputedStyle(row.getCell("name").getElement()).fontWeight;
+    const slantOf = (row) => getComputedStyle(row.getCell("name").getElement()).fontStyle;
 
     setupPreferences(table);
 
@@ -1778,7 +1778,7 @@ async function preferencesSteps() {
         && backStyle.position === "static" && backStyle.opacity === "1",
         `${body.dataset.toolbarText} ${backStyle.display}/${backStyle.position}/${backStyle.opacity}`);
 
-    // ---- a changed name is bold unless the option says otherwise --------
+    // ---- a changed name is italic unless the option says otherwise ------
     table.replaceData([{
         name: "changed", original_name: "original", extension: "txt", is_dir: false,
         full_path: "/d/changed.txt", date_created: "", date_modified: "", size: "1 KB",
@@ -1787,11 +1787,11 @@ async function preferencesSteps() {
 
     const row = table.getRows("active")[0];
     applyPreferences(table, prefs({bold_changed: true}));
-    check("prefs: a changed name is bold", weightOf(row) === "700", weightOf(row));
+    check("prefs: a changed name is italic", slantOf(row) === "italic", slantOf(row));
 
     applyPreferences(table, prefs({bold_changed: false}));
-    check("prefs: bold off returns the normal weight",
-        body.classList.contains("no-bold-changed") && weightOf(row) === "400", weightOf(row));
+    check("prefs: bold off returns the upright face",
+        body.classList.contains("no-bold-changed") && slantOf(row) === "normal", slantOf(row));
 
     applyPreferences(table, prefs({bold_changed: true}));
 

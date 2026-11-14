@@ -1,10 +1,10 @@
 // What an edited name looks like.
 //
-// A name that no longer matches the one on disk is drawn in bold, so what a save
+// A name that no longer matches the one on disk is drawn in italic, so what a save
 // would rename stands out from the rows it would leave alone. The mark is read
 // from the data every time a row is drawn rather than set once on the edit: an
 // undo, a top-up from a macro, a refused save or a load all put rows back or
-// replace them, and the bold has to follow.
+// replace them, and the mark has to follow.
 //
 // Nothing changes while an editor is open. The name being typed must not change
 // shape under the caret, and the rows a highlighted edit copies itself into are

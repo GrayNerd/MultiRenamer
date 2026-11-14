@@ -34,7 +34,7 @@ export class Config {
         }
         if (!("bold_changed" in $$source)) {
             /**
-             * a changed name is drawn bold
+             * a changed name is drawn italic
              * @member
              * @type {boolean}
              */

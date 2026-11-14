@@ -2,7 +2,7 @@
 //
 // The options come from Go when a window loads and again whenever they are saved,
 // so a change shows in the grid without a restart. Three of them are no more than
-// a class or an attribute on <body> — the theme, the toolbar text and the bold on
+// a class or an attribute on <body> — the theme, the toolbar text and the italic on
 // a changed name are all styled from style.css — while the sort has to be applied
 // to the grid, and put back on every load that replaces its rows.
 

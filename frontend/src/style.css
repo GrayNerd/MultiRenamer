@@ -220,16 +220,17 @@ body[data-toolbar-text="false"] #toolbar .toolbar-right .btn-label {
     white-space: pre !important;
 }
 
-/* A name that has been edited: bold, so what a save will rename stands out. The
-   cell being typed into keeps the normal weight until its editor closes, and the
-   rows a highlighted edit copies itself into wait for the same moment; both are
+/* A name that has been edited: italic, so what a save will rename stands out. The
+   cell being typed into keeps the normal upright face until its editor closes, and
+   the rows a highlighted edit copies itself into wait for the same moment; both are
    driven from edited.js. */
 .tabulator .tabulator-row.rename-edited .tabulator-cell[tabulator-field="name"]:not(.tabulator-editing) {
     font-style: italic;
 }
 
-/* "Bold changed file names" unticked: the mark is still there, the weight is not.
-   preferences.js sets this class from the saved option. */
+/* "Italic changed file names" unticked: the mark is still there, the slant is not.
+   preferences.js sets this class from the saved option; the class keeps its old
+   name, which is the option's key in config.json. */
 body.no-bold-changed .tabulator .tabulator-row.rename-edited .tabulator-cell[tabulator-field="name"] {
     font-style: normal;
 }

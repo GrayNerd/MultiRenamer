@@ -102,10 +102,10 @@ createOvertype(table, "name");
 // A name a save could not change is shown in red until it is edited again.
 table.on("cellEdited", forgetRefused);
 
-// A name that has been edited is shown in bold, once the edit is finished.
+// A name that has been edited is shown in italic, once the edit is finished.
 setupEditedNames(table);
 
-// What the Setup window saved: the theme, the toolbar text, the bold, and the
+// What the Setup window saved: the theme, the toolbar text, the italic, and the
 // sort a load starts with.
 setupPreferences(table);
 
