@@ -241,9 +241,10 @@ still on: the option decides whether another one is written, not whether the las
 one is used.
 
 On X11 the place is handed to the window manager before the window is first shown,
-so it opens where it was left without being seen anywhere else first. Where a
-program cannot place its own window (Wayland), the window is moved as soon as it is
-up instead.
+so it opens where it was left without being seen anywhere else first. On Windows
+and macOS the place is asked for as the window is made, which those platforms
+honour, so it is never seen anywhere else either. Where a program cannot place its
+own window (Wayland), the window is moved as soon as it is up instead.
 
 Whatever is in the files is read when the program starts, so a hand-edited
 `config.json` is honoured. A missing or unreadable file falls back to the defaults.

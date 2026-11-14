@@ -35,10 +35,18 @@ func mainWindowOptions(cfg Config, state WindowState, restore bool) application.
 		return options
 	}
 
-	// Only the size is asked for here: the place is set once the window is up,
-	// which is the first moment a move is honoured — see App.ShowMain.
 	options.Width = state.Width
 	options.Height = state.Height
+
+	// The place is asked for as the window is made too, for the platforms that
+	// put a window up where it was created (Windows and macOS): it is then never
+	// seen anywhere else. The place has to be named, because the default is the
+	// middle of the screen and X,Y are ignored under it. On X11 nothing is placed
+	// until the window is mapped, so this is not what puts the window where it
+	// belongs there — see App.ShowMain.
+	options.InitialPosition = application.WindowXY
+	options.X = state.X
+	options.Y = state.Y
 
 	return options
 }
