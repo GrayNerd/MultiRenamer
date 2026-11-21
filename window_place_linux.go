@@ -64,13 +64,27 @@ static void setPositionHints(Display *xdisplay, Window xwindow, int x, int y) {
 	XFree(hints);
 }
 
-// setWindowOpacity makes the whole window — frame included — this opaque, from
-// 0 (invisible) to 0xffffffff (fully opaque), through the standard property the
-// compositor reads.
-static void setWindowOpacity(Display *xdisplay, Window xwindow, unsigned long opacity) {
-	Atom atom = XInternAtom(xdisplay, "_NET_WM_WINDOW_OPACITY", False);
-	XChangeProperty(xdisplay, xwindow, atom, XA_CARDINAL, 32, PropModeReplace,
-		(unsigned char *)&opacity, 1);
+// paintWindowBackground gives the window itself an opaque colour, so the frames
+// drawn before the page has anything of its own to show are that colour rather
+// than whatever is behind the window. WebKitGTK draws the page with an alpha
+// channel, and until the page has painted every pixel is transparent: the
+// compositor then shows the desktop through the window, which is the flash.
+//
+// The colour goes on a class the window alone carries, so nothing else in the
+// program is affected.
+static void paintWindowBackground(GtkWidget *widget, const char *colour) {
+	GtkCssProvider *provider = gtk_css_provider_new();
+	char *css = g_strdup_printf("window.multirenamer-painting { background-color: %s; }", colour);
+	gtk_css_provider_load_from_string(provider, css);
+	g_free(css);
+
+	gtk_style_context_add_provider_for_display(
+		gtk_widget_get_display(widget),
+		GTK_STYLE_PROVIDER(provider),
+		GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+	g_object_unref(provider);
+
+	gtk_widget_add_css_class(widget, "multirenamer-painting");
 }
 
 // showWindowAt maps the window at x,y with the position hints already on it.
@@ -82,11 +96,16 @@ static void setWindowOpacity(Display *xdisplay, Window xwindow, unsigned long op
 // A reparenting window manager places the window's frame at the hint's x,y,
 // leaving the content a title bar lower. It reports that border in
 // _NET_FRAME_EXTENTS as it manages the window, so the frame is moved up by it
-// before the window is revealed. The window is transparent in the meantime, so it
-// is never seen anywhere but where it belongs.
-static int showWindowAt(void *window, int x, int y) {
+// before the window is presented.
+//
+// The window is painted in the page's own colour first, so the frames drawn
+// between the map and the page's first painted frame are that colour. Without it
+// they are the toolkit's default and the desktop shows through WebKit's
+// still-transparent page, which is the flash.
+static int showWindowAt(void *window, int x, int y, const char *colour) {
 	GtkWidget *widget = GTK_WIDGET(window);
 	gtk_widget_realize(widget);
+	paintWindowBackground(widget, colour);
 
 	GtkNative *native = gtk_widget_get_native(widget);
 	if (native == NULL) {
@@ -110,7 +129,6 @@ static int showWindowAt(void *window, int x, int y) {
 	XChangeWindowAttributes(xdisplay, xwindow, CWWinGravity, &attributes);
 
 	XMoveWindow(xdisplay, xwindow, x, y);
-	setWindowOpacity(xdisplay, xwindow, 0); // not seen until it is in place
 	XMapWindow(xdisplay, xwindow);
 	XFlush(xdisplay);
 
@@ -129,12 +147,11 @@ static int showWindowAt(void *window, int x, int y) {
 	XFlush(xdisplay);
 
 	// GTK presents the window (it is already mapped) and starts rendering, writing
-	// its own hints and gravity: ours go back, and only then is the window shown.
+	// its own hints and gravity: ours go back over the top of them.
 	gtk_window_present(GTK_WINDOW(widget));
 	setPositionHints(xdisplay, xwindow, x - left, y - top);
 	attributes.win_gravity = StaticGravity;
 	XChangeWindowAttributes(xdisplay, xwindow, CWWinGravity, &attributes);
-	setWindowOpacity(xdisplay, xwindow, 0xffffffff);
 	XFlush(xdisplay);
 
 	return 1;
@@ -142,16 +159,26 @@ static int showWindowAt(void *window, int x, int y) {
 */
 import "C"
 
-import "github.com/wailsapp/wails/v3/pkg/application"
+import (
+	"fmt"
+	"unsafe"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
+)
 
 // showWindowAt puts the window at x,y before it is first seen, so the window
 // manager maps it there rather than at a place of its own choosing, and its frame
-// is accounted for so the content lands where it was left. The answer is false
-// when this display cannot be positioned this way (a Wayland session, or a
-// platform without X11), and the window is put up and moved instead (see
+// is accounted for so the content lands where it was left. The colour is painted
+// on the window itself, so the frames drawn before the page has anything to show
+// are the page's own colour rather than the desktop seen through it. The answer
+// is false when this display cannot be positioned this way (a Wayland session, or
+// a platform without X11), and the window is put up and moved instead (see
 // App.ShowMain).
-func showWindowAt(window *application.WebviewWindow, x, y int) bool {
+func showWindowAt(window *application.WebviewWindow, x, y int, colour application.RGBA) bool {
 	shown := false
+
+	// The colour as the CSS the window is painted with: "#rrggbb".
+	css := fmt.Sprintf("#%02x%02x%02x", colour.Red, colour.Green, colour.Blue)
 
 	// GTK and Xlib are only safe on the thread that owns them.
 	application.InvokeSync(func() {
@@ -159,7 +186,10 @@ func showWindowAt(window *application.WebviewWindow, x, y int) bool {
 		if native == nil {
 			return
 		}
-		shown = C.showWindowAt(native, C.int(x), C.int(y)) != 0
+		cColour := C.CString(css)
+		defer C.free(unsafe.Pointer(cColour))
+
+		shown = C.showWindowAt(native, C.int(x), C.int(y), cColour) != 0
 	})
 
 	return shown

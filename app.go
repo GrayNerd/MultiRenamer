@@ -562,22 +562,18 @@ func (a *App) newSetupWindow() *application.WebviewWindow {
 // The window is made hidden, and this is called once the page has applied the
 // saved options, so it is never seen in the wrong place or the wrong theme. It
 // acts once, whichever of the page and the fallback timer gets there first.
+//
+// Where the window was left is given to the window manager as the window is
+// mapped, so its first frame is already in place — see showWindowAt.
 func (a *App) ShowMain() {
 	if a.mainWindow == nil || a.mainShown.Swap(true) {
 		return
 	}
 
-	// Where the window was left is given to the window manager as the window is
-	// mapped, so its first frame is already in place. A window shown first is seen
-	// for a moment where the manager chose to put it before it is moved.
-	if a.hasWindowState && showWindowAt(a.mainWindow, a.windowState.X, a.windowState.Y) {
-		go func() {
-			time.Sleep(150 * time.Millisecond) // the window is up
-			if x, y := a.mainWindow.Position(); x != a.windowState.X || y != a.windowState.Y {
-				a.placeMainWindow(a.windowState.X, a.windowState.Y)
-			}
-			a.focusMainWindow()
-		}()
+	if a.hasWindowState &&
+		showWindowAt(a.mainWindow, a.windowState.X, a.windowState.Y,
+			themeBackground(a.currentConfig().Theme)) {
+		a.focusMainWindow()
 		return
 	}
 

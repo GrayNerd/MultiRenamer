@@ -121,6 +121,9 @@ export function SetSetupForm(cfg) {
  * The window is made hidden, and this is called once the page has applied the
  * saved options, so it is never seen in the wrong place or the wrong theme. It
  * acts once, whichever of the page and the fallback timer gets there first.
+ * 
+ * Where the window was left is given to the window manager as the window is
+ * mapped, so its first frame is already in place — see showWindowAt.
  * @returns {$CancellablePromise<void>}
  */
 export function ShowMain() {
